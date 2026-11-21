@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>护航服务详情 · 无定电竞护航</title>
+  <link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div class="brand-text"><strong data-site="siteName">无定电竞护航</strong><span>无定科技 · 工作室直营</span></div>
+      </a>
+      <nav class="nav">
+        <a href="/">首页</a>
+        <a href="/#products">护航商城</a>
+        <a href="/track.html">订单查询</a>
+        <a href="/#faq">常见问题</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost btn-sm" href="/admin/">管理后台</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="breadcrumb"><a href="/">首页</a> / <a href="/#products">护航商城</a> / <span id="crumbTitle">服务详情</span></div>
+
+    <div class="detail-layout">
+      <div class="detail-main">
+        <div>
+          <div class="detail-cover"><img id="cover" alt="服务封面" src="/assets/img/cover-default.svg" /></div>
+        </div>
+        <div class="detail-head">
+          <div class="meta" id="badges"></div>
+          <h1 id="title">加载中…</h1>
+          <p class="subtitle" id="subtitle"></p>
+        </div>
+        <div class="panel">
+          <h3>这个项目怎么打</h3>
+          <p class="prose" id="desc"></p>
+        </div>
+        <div class="panel">
+          <h3>包含什么</h3>
+          <ul class="include-list" id="includes"></ul>
+        </div>
+        <div class="panel">
+          <h3>下单前注意</h3>
+          <div class="safe-tips">
+            <span>提交后客服会加你，对一下区服、段位和开打时间；晚上八点前的单当天能排上。</span>
+            <span>只用你给的时间段上号，不在游戏里聊天，不动背包和点券，打完当天交还。</span>
+            <span>段位单掉段负责补回；赛季保底单没到约定段位，按没完成的比例退差价。</span>
+            <span>站内不收支付信息，付款前认准收款方是「<span data-site="company">无定科技</span>」。</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="buy-card">
+        <div class="panel">
+          <div class="buy-price">
+            <span class="price"><span class="cur">¥</span><span id="price">--</span><span class="unit" id="unit"></span></span>
+            <span class="price-old" id="oldPrice"></span>
+          </div>
+          <div class="buy-meta" style="margin-top:14px">
+            <span>销量：<span id="sales">--</span></span>
+            <span>库存：<span id="stock">--</span></span>
+          </div>
+
+          <form id="orderForm" class="form-grid" style="margin-top:16px" novalidate>
+            <div class="two">
+              <div class="field">
+                <label for="contactName">您的称呼<span class="req">*</span></label>
+                <input id="contactName" type="text" maxlength="30" placeholder="例如：小明" required />
+              </div>
+              <div class="field">
+                <label for="contactPhone">联系方式<span class="req">*</span></label>
+                <input id="contactPhone" type="text" maxlength="30" placeholder="手机号 / QQ / 微信" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="gameAccount">游戏账号 / 角色 ID<span class="req">*</span></label>
+              <input id="gameAccount" type="text" maxlength="80" placeholder="请输入游戏昵称或角色 ID" required />
+            </div>
+            <div class="two">
+              <div class="field">
+                <label for="server">区服 / 平台</label>
+                <input id="server" type="text" maxlength="40" placeholder="例如：微信区 / 亚服 / 移动端" />
+              </div>
+              <div class="field">
+                <label>购买数量</label>
+                <div class="qty-control">
+                  <button type="button" data-step="-1" aria-label="减少">−</button>
+                  <input id="qty" type="number" min="1" max="50" value="1" />
+                  <button type="button" data-step="1" aria-label="增加">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="note">备注需求</label>
+              <textarea id="note" maxlength="300" placeholder="例如：希望今晚 20:00 后开始 / 指定位置 / 已有段位"></textarea>
+            </div>
+            <div class="total-line">
+              <span>应付金额</span>
+              <b>¥<span id="total">0</span></b>
+            </div>
+            <button class="btn btn-primary btn-block" type="submit" id="submitBtn">提交订单</button>
+            <p class="hint" id="formError" style="min-height:16px;color:#ff6b81"></p>
+          </form>
+        </div>
+        <div class="panel">
+          <h3>找客服</h3>
+          <div class="safe-tips">
+            <span>QQ：<span data-kefu="qq">800-123-456</span></span>
+            <span>微信：<span data-kefu="wechat">wunding-kefu</span></span>
+            <span>服务时间：<span data-kefu="hours">每日 09:00 - 次日 02:00</span></span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="copyright">
+        <span><strong data-site="copyright">© 2026 无定科技 版权所有</strong></span>
+        <span data-site="icp">备案号：蜀ICP备2026000000号</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="modal-mask" id="successMask">
+    <div class="modal">
+      <h3>下单成功，订单号记一下</h3>
+      <div class="panel" style="border:none;padding:0;background:transparent">
+        <div class="kv-grid">
+          <div class="kv"><span>订单号</span><b id="okNo" style="color:#35e6ff;letter-spacing:1px">--</b></div>
+          <div class="kv"><span>服务</span><span id="okProduct">--</span></div>
+          <div class="kv"><span>金额</span><span id="okAmount">--</span></div>
+          <div class="kv"><span>状态</span><span id="okStatus">待接单</span></div>
+        </div>
+        <p class="hint" id="okTips" style="margin-top:14px"></p>
+        <p class="hint" style="margin-top:8px">客服 QQ：<b id="okQq">--</b> ｜ 微信：<b id="okWechat">--</b></p>
+      </div>
+      <div class="modal-actions">
+        <a class="btn btn-ghost" href="/#products">再看看别的</a>
+        <a class="btn btn-primary" id="okTrack" href="/track.html">看进度</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/product.js"></script>
+</body>
+</html>

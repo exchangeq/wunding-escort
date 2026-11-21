@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="王者荣耀护航封面">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12060f"/>
+      <stop offset="0.45" stop-color="#1b0b22"/>
+      <stop offset="1" stop-color="#07131f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.2" r="0.62">
+      <stop offset="0" stop-color="#ffb23f" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#ffb23f" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.16" cy="0.86" r="0.5">
+      <stop offset="0" stop-color="#35e6ff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#35e6ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffc75a"/>
+      <stop offset="1" stop-color="#35e6ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+  <rect width="1600" height="900" fill="url(#glow2)"/>
+  <g stroke="#f2b969" stroke-opacity="0.08" stroke-width="1">
+    <path d="M0 700 L1600 220"/><path d="M0 800 L1600 320"/><path d="M0 900 L1600 420"/>
+    <path d="M200 900 L480 0"/><path d="M400 900 L680 0"/><path d="M1200 900 L1480 0"/>
+    <path d="M1000 900 L1280 0"/><path d="M1400 900 L1600 420"/>
+  </g>
+  <g transform="translate(1180 430)">
+    <circle r="230" fill="none" stroke="#ffc75a" stroke-opacity="0.22" stroke-width="2"/>
+    <circle r="170" fill="none" stroke="#ffc75a" stroke-opacity="0.35" stroke-width="1"/>
+    <path d="M0 -120 L104 -60 L104 60 L0 120 L-104 60 L-104 -60 Z" fill="#ffc75a" opacity="0.12"/>
+    <path d="M0 -120 L104 -60 L104 60 L0 120 L-104 60 L-104 -60 Z" fill="none" stroke="url(#edge)" stroke-width="2"/>
+  </g>
+  <text x="96" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" letter-spacing="8" fill="#ffc75a" opacity="0.85">无定电竞护航</text>
+  <text x="96" y="430" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="128" font-weight="700" fill="#ffffff" letter-spacing="4">王者荣耀</text>
+  <text x="100" y="520" font-family="Arial, sans-serif" font-size="46" letter-spacing="14" fill="#ffc75a" opacity="0.9">HONOR OF KINGS</text>
+  <rect x="96" y="568" width="220" height="3" fill="url(#edge)"/>
+  <text x="96" y="640" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="34" fill="#d8c6b0">专业段位护航 · 真人全程托管</text>
+  <g font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#f0dcc0" opacity="0.75">
+    <text x="96" y="748">战绩可查</text>
+    <text x="236" y="748">掉段补齐</text>
+    <text x="376" y="748">隐私加密</text>
+  </g>
+</svg>

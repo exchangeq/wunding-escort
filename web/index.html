@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>无定电竞护航 · 上分护航与陪玩</title>
+  <meta name="description" content="无定电竞护航：王者荣耀、英雄联盟、和平精英、永劫无间等项目的段位护航和陪玩，工作室自己排班，进度当天更新。" />
+  <meta name="theme-color" content="#070a12" />
+  <link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div class="brand-text">
+          <strong data-site="siteName">无定电竞护航</strong>
+          <span>无定科技 · 工作室直营</span>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="/" class="active">首页</a>
+        <a href="#projects">项目与价格</a>
+        <a href="/track.html">订单进度</a>
+        <a href="#faq">常见问题</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost btn-sm" href="/admin/">后台入口</a>
+        <a class="btn btn-primary btn-sm" href="#projects">看价格</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="container hero-inner">
+        <div>
+          <span class="eyebrow">2026 冬季档 · 正常接单</span>
+          <h1>无定电竞护航<br />自己人打，进度看得见</h1>
+          <p class="lead" data-site="subSlogan">工作室直营的上分护航，接单后排班，进度当天更新</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#projects">看看在接的项目</a>
+            <a class="btn btn-ghost" href="/track.html">查我的订单</a>
+          </div>
+        </div>
+        <div class="hero-stats" id="heroStats"></div>
+      </div>
+      <div class="container">
+        <div class="notice-bar">
+          <span class="dot"></span>
+          <span class="label">公告</span>
+          <span class="text" data-site="notice">周末档位比较满，建议提前一天下单。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="projects">
+      <div class="container">
+        <div class="section-head">
+          <h2>在接的项目<small>价格就是实价，没有另外加收</small></h2>
+          <p class="desc">下面这些都是工作室现在在接的，档期和库存后台随时改。</p>
+        </div>
+
+        <div class="filter-panel">
+          <div class="filter-row" id="gameTabs"></div>
+          <div class="filter-row" id="categoryTabs"></div>
+          <div class="filter-row">
+            <input id="searchInput" type="search" placeholder="搜游戏或服务，比如「王者 段位」" autocomplete="off" />
+            <select id="sortSelect" aria-label="排序方式">
+              <option value="default">按上架顺序</option>
+              <option value="sales">接得多的在前</option>
+              <option value="priceAsc">价格低到高</option>
+              <option value="priceDesc">价格高到低</option>
+              <option value="new">最近上架</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="product-grid" id="productGrid">
+          <div class="empty" style="grid-column: 1 / -1">正在加载…</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <h2>怎么下单<small>不用注册，填个账号就行</small></h2>
+        </div>
+        <div class="steps">
+          <div class="step-card">
+            <div class="num">01</div>
+            <h4>挑项目和段位</h4>
+            <p>页面上标了价格和大概工期，拿不准就找客服问，会按你账号情况给建议。</p>
+          </div>
+          <div class="step-card">
+            <div class="num">02</div>
+            <h4>填游戏账号</h4>
+            <p>留下角色 ID、区服和联系方式，提交后会拿到一个订单号，截图存一下。</p>
+          </div>
+          <div class="step-card">
+            <div class="num">03</div>
+            <h4>客服拉群</h4>
+            <p>值班的人加你，把你和护航师拉到一个群里，开打之前先对一下时间。</p>
+          </div>
+          <div class="step-card">
+            <div class="num">04</div>
+            <h4>打完验收</h4>
+            <p>到了约定段位就交号，进度有问题在群里说，售后按页面上的规则处理。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-head">
+          <h2>常问的几件事</h2>
+        </div>
+        <div class="faq">
+          <details class="faq-item" open>
+            <summary>下单后多久能开始打？</summary>
+            <p>晚上八点前下的单，当天基本能排上；周末和赛季末会排队，客服会提前告诉你大概时间。急着要的话下单时在备注里写一下。</p>
+          </details>
+          <details class="faq-item">
+            <summary>账号会不会有风险？</summary>
+            <p>只用你给的时段上号，不在游戏里聊天，不动背包和点券。打完当天交还，我们这边不留账号信息，群里的聊天记录也会清掉。</p>
+          </details>
+          <details class="faq-item">
+            <summary>没打到约定段位怎么办？</summary>
+            <p>段位单有掉段补回，接着打回来就行；赛季保底单没到约定段位，按没完成的比例退差价。退款走原路，一般两天内到账。</p>
+          </details>
+          <details class="faq-item">
+            <summary>怎么付款？</summary>
+            <p>客服核对订单后发收款码，微信、支付宝都可以，公司账户也能开票。站内不收集支付信息，付款前认准收款方是无定科技。</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="contact">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h5 data-site="siteName">无定电竞护航</h5>
+          <p>工作室在成都，做电竞护航三年多，主要接段位和陪玩。</p>
+          <p>客服在线时间：<span data-kefu="hours">每天 10:00–24:00</span></p>
+          <p>本站由 <strong data-site="company">无定科技</strong> 开发和运营。</p>
+        </div>
+        <div>
+          <h5>站内</h5>
+          <ul>
+            <li><a href="/#projects">项目与价格</a></li>
+            <li><a href="/track.html">订单进度</a></li>
+            <li><a href="/#faq">常见问题</a></li>
+            <li><a href="/admin/">后台入口</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5>联系</h5>
+          <p>QQ：<span data-kefu="qq">2137-884-902</span></p>
+          <p>微信：<span data-kefu="wechat">wunding-kf</span></p>
+          <p>电话：<span data-kefu="phone">173-0000-0000</span></p>
+        </div>
+      </div>
+      <div class="copyright">
+        <span><strong data-site="copyright">© 2026 无定科技 版权所有</strong></span>
+        <span data-site="icp">蜀ICP备2026018866号</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[Unit]
+Description=Wunding Escort (Go)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/wunding-escort
+Environment=PORT=8080
+Environment=HOST=127.0.0.1
+Environment=SESSION_SECRET=please-change-this
+Environment=DATA_DIR=/opt/wunding-escort/data
+ExecStart=/opt/wunding-escort/wunding-escort
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

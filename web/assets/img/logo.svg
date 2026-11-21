@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="无定科技">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#35e6ff"/>
+      <stop offset="0.5" stop-color="#4f8cff"/>
+      <stop offset="1" stop-color="#9a6bff"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 3 L58 18 V46 L32 61 L6 46 V18 Z" fill="none" stroke="url(#lg)" stroke-width="2.4"/>
+  <path d="M32 11 L51 22 V42 L32 53 L13 42 V22 Z" fill="url(#lg)" opacity="0.14"/>
+  <text x="32" y="41.5" font-size="27" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="url(#lg)">无</text>
+</svg>

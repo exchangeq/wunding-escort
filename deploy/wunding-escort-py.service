@@ -1,0 +1,19 @@
+[Unit]
+Description=Wunding Escort (Python)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/wunding-escort
+Environment=PORT=8080
+Environment=HOST=127.0.0.1
+Environment=SESSION_SECRET=please-change-this
+ExecStart=/usr/bin/python3 server-py/app.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

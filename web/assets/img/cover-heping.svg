@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="和平精英护航封面">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07120c"/>
+      <stop offset="0.5" stop-color="#0c1c12"/>
+      <stop offset="1" stop-color="#12140a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.22" r="0.6">
+      <stop offset="0" stop-color="#f2c14e" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#f2c14e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.1" cy="0.85" r="0.5">
+      <stop offset="0" stop-color="#37e07f" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#37e07f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#37e07f"/>
+      <stop offset="1" stop-color="#f2c14e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+  <rect width="1600" height="900" fill="url(#glow2)"/>
+  <g stroke="#9ff2bd" stroke-opacity="0.08" stroke-width="1">
+    <path d="M0 0 L340 900"/><path d="M300 0 L640 900"/><path d="M640 0 L980 900"/>
+    <path d="M980 0 L1320 900"/><path d="M1320 0 L1600 780"/>
+  </g>
+  <g transform="translate(1210 450)">
+    <path d="M0 -170 L120 -100 V40 L0 120 L-120 40 V-100 Z" fill="#37e07f" opacity="0.1"/>
+    <path d="M0 -170 L120 -100 V40 L0 120 L-120 40 V-100 Z" fill="none" stroke="#7cf0a9" stroke-opacity="0.45" stroke-width="2"/>
+    <path d="M-40 -120 L60 -70 V30 L-20 80" fill="none" stroke="#f2c14e" stroke-width="3" opacity="0.85"/>
+    <circle cx="40" cy="10" r="5" fill="#f2c14e"/>
+  </g>
+  <text x="96" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" letter-spacing="8" fill="#9ff2bd" opacity="0.85">无定电竞护航</text>
+  <text x="96" y="430" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="124" font-weight="700" fill="#ffffff" letter-spacing="4">和平精英</text>
+  <text x="100" y="520" font-family="Arial, sans-serif" font-size="46" letter-spacing="12" fill="#f2c14e" opacity="0.9">GAME FOR PEACE</text>
+  <rect x="96" y="568" width="220" height="3" fill="url(#edge)"/>
+  <text x="96" y="640" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="34" fill="#d3e8c6">四排车队带飞 · 语音战术指挥</text>
+  <g font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#dbead0" opacity="0.72">
+    <text x="96" y="748">赛季保底</text>
+    <text x="236" y="748">固定车队</text>
+    <text x="376" y="748">未达标退款</text>
+  </g>
+</svg>

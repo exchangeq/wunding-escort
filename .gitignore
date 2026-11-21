@@ -1,0 +1,14 @@
+# 运行数据与产物
+data/
+dist/
+*.zip
+__pycache__/
+*.pyc
+wunding-escort
+*.log
+
+# 本机环境
+.env
+.env.local
+.DS_Store
+Thumbs.db

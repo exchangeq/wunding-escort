@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>管理后台 · 无定电竞护航</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body class="admin-body">
+
+  <!-- 登录 -->
+  <div class="login-wrap" id="loginView">
+    <div class="login-card">
+      <div class="brand">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div class="brand-text" style="align-items:center">
+          <strong style="font-size:18px">无定电竞护航 · 运营后台</strong>
+          <span style="letter-spacing:2px">WUNDING ADMIN CONSOLE</span>
+        </div>
+      </div>
+      <form id="loginForm" style="display:grid;gap:14px">
+        <div class="field">
+          <label for="username">管理员账号</label>
+          <input id="username" type="text" autocomplete="username" placeholder="请输入管理员账号" />
+        </div>
+        <div class="field">
+          <label for="password">登录密码</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" />
+        </div>
+        <p class="form-error" id="loginError"></p>
+        <button class="btn btn-primary btn-block" type="submit" id="loginBtn">登 录</button>
+      </form>
+      <p class="tip">仅限工作室运营使用 · © 2026 <span data-site="company">无定科技</span></p>
+    </div>
+  </div>
+
+  <!-- 后台 -->
+  <div class="admin-shell" id="adminView" style="display:none">
+    <aside class="admin-side">
+      <a class="brand" href="/">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div class="brand-text"><strong style="font-size:15px">无定电竞护航</strong><span>ADMIN</span></div>
+      </a>
+      <nav class="side-nav" id="sideNav">
+        <button data-view="overview" class="active">数据总览</button>
+        <button data-view="products">商品管理</button>
+        <button data-view="orders">订单管理</button>
+        <button data-view="settings">站点设置</button>
+        <button data-view="security">账号安全</button>
+      </nav>
+      <div class="side-foot">
+        <div><span id="whoName">--</span></div>
+        <div style="margin-top:6px"><a href="/" style="color:#8fb5ff">← 返回前台商城</a></div>
+        <div style="margin-top:6px">© 2026 无定科技</div>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <div class="admin-top">
+        <div>
+          <h2 id="viewTitle">数据总览</h2>
+          <div class="who" id="viewSub">实时掌握平台经营与订单情况</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="refreshBtn">刷新数据</button>
+          <button class="btn btn-ghost btn-sm" id="logoutBtn">退出登录</button>
+        </div>
+      </div>
+
+      <!-- 总览 -->
+      <section class="admin-view active" data-view="overview">
+        <div class="card-grid" id="kpiGrid"></div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><h3>近 7 天订单趋势</h3><span class="hint">按订单创建时间统计</span></div>
+          <div class="chart" id="chart"></div>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><h3>最近订单</h3><span class="hint" id="logLine"></span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>订单号</th><th>服务</th><th>联系人</th><th>金额</th><th>状态</th><th>时间</th></tr></thead>
+              <tbody id="recentOrders"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 商品 -->
+      <section class="admin-view" data-view="products">
+        <div class="admin-panel">
+          <div class="admin-panel-head">
+            <h3>商品列表 <span class="hint" id="productCount"></span></h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input id="prodSearch" type="search" placeholder="搜索标题 / 游戏" style="width:180px" />
+              <select id="prodGame" style="width:140px"><option value="全部">全部游戏</option></select>
+              <button class="btn btn-primary btn-sm" id="newProductBtn">+ 新增商品</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>封面</th><th>标题</th><th>游戏</th><th>类型</th><th>价格</th><th>库存</th><th>销量</th><th>状态</th><th>排序</th><th>操作</th></tr>
+              </thead>
+              <tbody id="productRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 订单 -->
+      <section class="admin-view" data-view="orders">
+        <div class="admin-panel">
+          <div class="admin-panel-head">
+            <h3>订单列表 <span class="hint" id="orderCount"></span></h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <select id="orderStatus" style="width:140px">
+                <option value="all">全部状态</option>
+                <option value="pending">待接单</option>
+                <option value="processing">护航中</option>
+                <option value="done">已完成</option>
+                <option value="cancelled">已取消</option>
+              </select>
+              <input id="orderSearch" type="search" placeholder="订单号 / 联系人 / 游戏ID" style="width:200px" />
+              <button class="btn btn-ghost btn-sm" id="orderReload">刷新</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>订单号</th><th>服务</th><th>数量</th><th>金额</th><th>联系人</th><th>游戏账号</th><th>备注</th><th>状态</th><th>下单时间</th><th>操作</th></tr>
+              </thead>
+              <tbody id="orderRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 站点设置 -->
+      <section class="admin-view" data-view="settings">
+        <div class="admin-panel">
+          <div class="admin-panel-head"><h3>品牌与文案</h3><span class="hint">修改后前台立即生效</span></div>
+          <form id="settingsForm" class="form-grid" style="gap:14px">
+            <div class="form-grid-2">
+              <div class="field"><label>站点名称</label><input id="s-siteName" type="text" maxlength="40" /></div>
+              <div class="field"><label>版权主体（公司）</label><input id="s-company" type="text" maxlength="40" /></div>
+            </div>
+            <div class="form-grid-2">
+              <div class="field"><label>主标语</label><input id="s-slogan" type="text" maxlength="80" /></div>
+              <div class="field"><label>副标语</label><input id="s-subSlogan" type="text" maxlength="120" /></div>
+            </div>
+            <div class="field"><label>平台公告</label><input id="s-notice" type="text" maxlength="200" /></div>
+            <div class="form-grid-2">
+              <div class="field"><label>版权信息</label><input id="s-copyright" type="text" maxlength="80" /></div>
+              <div class="field"><label>备案信息</label><input id="s-icp" type="text" maxlength="80" /></div>
+            </div>
+            <div class="field"><label>下单提示（提交订单后展示）</label><textarea id="s-orderTips" maxlength="300" style="min-height:70px"></textarea></div>
+
+            <div class="admin-panel-head" style="margin:8px 0 0"><h3>客服信息</h3></div>
+            <div class="form-grid-2">
+              <div class="field"><label>客服 QQ</label><input id="s-kefu-qq" type="text" maxlength="40" /></div>
+              <div class="field"><label>客服微信</label><input id="s-kefu-wechat" type="text" maxlength="40" /></div>
+            </div>
+            <div class="form-grid-2">
+              <div class="field"><label>客服电话</label><input id="s-kefu-phone" type="text" maxlength="40" /></div>
+              <div class="field"><label>服务时间</label><input id="s-kefu-hours" type="text" maxlength="60" /></div>
+            </div>
+
+            <div class="admin-panel-head" style="margin:8px 0 0"><h3>首页数据卡片</h3><span class="hint">4 项，留空则隐藏</span></div>
+            <div id="heroStatFields" class="form-grid-2"></div>
+
+            <div style="display:flex;gap:10px;margin-top:8px">
+              <button class="btn btn-primary" type="submit" id="saveSettingsBtn">保存设置</button>
+              <button class="btn btn-ghost" type="button" id="reloadSettingsBtn">重新载入</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- 安全 -->
+      <section class="admin-view" data-view="security">
+        <div class="admin-panel" style="max-width:520px">
+          <div class="admin-panel-head"><h3>修改登录密码</h3></div>
+          <form id="passwordForm" class="form-grid" style="gap:14px">
+            <div class="field"><label>当前密码</label><input id="oldPassword" type="password" autocomplete="current-password" /></div>
+            <div class="field"><label>新密码（至少 6 位）</label><input id="newPassword" type="password" autocomplete="new-password" /></div>
+            <div class="field"><label>确认新密码</label><input id="newPassword2" type="password" autocomplete="new-password" /></div>
+            <button class="btn btn-primary" type="submit">更新密码</button>
+          </form>
+          <p class="hint" style="margin-top:14px">提示：密码通过 scrypt 加盐哈希存储；登录 12 小时有效，超时需重新登录。</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 商品编辑弹窗 -->
+  <div class="modal-mask" id="productMask">
+    <div class="modal wide">
+      <h3 id="productModalTitle">新增商品</h3>
+      <form id="productForm" class="form-grid" style="gap:14px">
+        <div class="form-grid-2">
+          <div class="field"><label>商品标题<span class="req">*</span></label><input id="p-title" type="text" maxlength="80" placeholder="例如：王者荣耀 · 星耀直达王者段位护航" /></div>
+          <div class="field"><label>副标题</label><input id="p-subtitle" type="text" maxlength="80" placeholder="一句话卖点" /></div>
+        </div>
+        <div class="form-grid-3">
+          <div class="field"><label>游戏<span class="req">*</span></label><input id="p-game" type="text" maxlength="20" placeholder="王者荣耀" /></div>
+          <div class="field"><label>服务类型<span class="req">*</span></label><input id="p-category" type="text" maxlength="20" placeholder="上分护航 / 娱乐陪玩 / 教学复盘" /></div>
+          <div class="field"><label>计价单位</label><input id="p-unit" type="text" maxlength="8" placeholder="段 / 局 / 小时" /></div>
+        </div>
+        <div class="form-grid-3">
+          <div class="field"><label>价格（元）<span class="req">*</span></label><input id="p-price" type="number" min="0" step="0.01" /></div>
+          <div class="field"><label>原价（元）</label><input id="p-oldPrice" type="number" min="0" step="0.01" /></div>
+          <div class="field"><label>库存</label><input id="p-stock" type="number" min="0" step="1" /></div>
+        </div>
+        <div class="form-grid-3">
+          <div class="field"><label>销量</label><input id="p-sales" type="number" min="0" step="1" /></div>
+          <div class="field"><label>排序权重（小在前）</label><input id="p-sort" type="number" min="0" step="1" /></div>
+          <div class="field"><label>状态</label>
+            <select id="p-status"><option value="on">上架</option><option value="off">下架</option></select>
+          </div>
+        </div>
+        <div class="field"><label>标签（英文逗号分隔，最多 6 个）</label><input id="p-tags" type="text" placeholder="全程托管,战绩可查,超时补偿" /></div>
+        <div class="field"><label>服务包含（每行一条）</label><textarea id="p-includes" style="min-height:80px" placeholder="段位进度每日截图反馈&#10;掉星免费补回"></textarea></div>
+        <div class="field"><label>详细介绍</label><textarea id="p-desc" style="min-height:110px"></textarea></div>
+        <div class="field">
+          <label>封面图</label>
+          <div class="upload-box">
+            <div class="upload-preview" id="coverPreview"><span>暂无封面</span></div>
+            <div style="flex:1">
+              <input id="p-coverFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="hint" style="margin-top:6px">支持 PNG / JPG / WEBP / GIF，单张不超过 5MB，上传后自动填入封面地址。</div>
+              <input id="p-cover" type="text" placeholder="或直接填写图片地址 /assets/img/cover-wangzhe.svg" style="margin-top:8px" />
+            </div>
+          </div>
+        </div>
+        <p class="form-error" id="productError"></p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" type="button" id="productCancel">取消</button>
+          <button class="btn btn-primary" type="submit" id="productSave">保存商品</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/admin.js"></script>
+</body>
+</html>

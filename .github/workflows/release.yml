@@ -1,0 +1,113 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-python:
+    name: Python 后端测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 语法检查
+        run: python3 -m py_compile server-py/*.py
+
+      - name: 冒烟测试
+        run: bash scripts/smoke.sh python
+
+  test-go:
+    name: Go 后端测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 静态检查与编译
+        run: |
+          cd server-go
+          gofmt -l . | tee /tmp/fmt.txt
+          test ! -s /tmp/fmt.txt
+          go vet ./...
+          go build -trimpath -o /tmp/wunding-go .
+
+      - name: 冒烟测试
+        env:
+          GO_BIN: /tmp/wunding-go
+        run: bash scripts/smoke.sh go
+
+  package:
+    name: 打包并发布
+    needs: [ test-python, test-go ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: 打 Python 包
+        run: bash scripts/package-py.sh
+
+      - name: 交叉编译并打 Go 包
+        run: bash scripts/package-go.sh
+
+      - name: 检查压缩包
+        run: |
+          set -e
+          ls -lh dist/*.zip
+          for f in dist/*.zip; do unzip -tq "$f"; done
+          # 解压 Python 包跑一遍，确认脱离仓库也能启动
+          TMP="$(mktemp -d)"
+          unzip -q dist/wunding-escort-python-*.zip -d "$TMP"
+          APP="$(find "$TMP" -maxdepth 1 -mindepth 1 -type d | head -1)"
+          PORT=18091 DATA_DIR="$TMP/data" python3 "$APP/server-py/app.py" > "$TMP/app.log" 2>&1 &
+          APP_PID=$!
+          for i in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:18091/api/health > /dev/null && break
+            sleep 0.25
+          done
+          curl -fsS http://127.0.0.1:18091/api/site | head -c 120; echo
+          curl -fsS http://127.0.0.1:18091/ | grep -c "无定科技"
+          kill "$APP_PID" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wunding-escort-${{ github.sha }}
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: 发布 Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          gh release create "${GITHUB_REF_NAME}" dist/*.zip \
+            --title "无定电竞护航 ${GITHUB_REF_NAME}" \
+            --notes "前台商城 + 运营后台。Python 包给 Termux 和普通服务器用，Go 包是 Linux amd64/arm64 的静态二进制。解压后看 README 或 run.sh。" \
+            --repo "$GITHUB_REPOSITORY"

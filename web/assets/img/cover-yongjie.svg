@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-label="永劫无间护航封面">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#160609"/>
+      <stop offset="0.5" stop-color="#1e0a0d"/>
+      <stop offset="1" stop-color="#08151a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.8" cy="0.2" r="0.6">
+      <stop offset="0" stop-color="#ff5d5d" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#ff5d5d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.12" cy="0.86" r="0.5">
+      <stop offset="0" stop-color="#43e5c0" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#43e5c0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff7a5d"/>
+      <stop offset="1" stop-color="#43e5c0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+  <rect width="1600" height="900" fill="url(#glow2)"/>
+  <g stroke="#ff9a7a" stroke-opacity="0.08" stroke-width="1">
+    <path d="M420 0 C520 300, 260 600, 420 900"/>
+    <path d="M720 0 C820 300, 560 600, 720 900"/>
+    <path d="M1020 0 C1120 300, 860 600, 1020 900"/>
+    <path d="M1320 0 C1420 300, 1160 600, 1320 900"/>
+  </g>
+  <g transform="translate(1220 450)">
+    <circle r="190" fill="none" stroke="#ff7a5d" stroke-opacity="0.25" stroke-width="2"/>
+    <circle r="120" fill="none" stroke="#43e5c0" stroke-opacity="0.3" stroke-width="1.5"/>
+    <path d="M-140 90 C-40 -80, 60 120, 150 -70" fill="none" stroke="#ff7a5d" stroke-width="4" opacity="0.9"/>
+    <path d="M-120 -60 C-20 40, 60 -100, 140 60" fill="none" stroke="#43e5c0" stroke-width="2" opacity="0.7"/>
+  </g>
+  <text x="96" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" letter-spacing="8" fill="#ffb59a" opacity="0.85">无定电竞护航</text>
+  <text x="96" y="430" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="124" font-weight="700" fill="#ffffff" letter-spacing="4">永劫无间</text>
+  <text x="100" y="520" font-family="Arial, sans-serif" font-size="46" letter-spacing="14" fill="#ff9a7a" opacity="0.9">NARAKA</text>
+  <rect x="96" y="568" width="220" height="3" fill="url(#edge)"/>
+  <text x="96" y="640" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="34" fill="#f0d4c9">无间修罗护航 · 振刀技巧同步教学</text>
+  <g font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#f3ddd5" opacity="0.72">
+    <text x="96" y="748">段位保底</text>
+    <text x="236" y="748">双人协同</text>
+    <text x="376" y="748">每日反馈</text>
+  </g>
+</svg>
