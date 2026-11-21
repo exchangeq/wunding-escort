@@ -41,20 +41,41 @@
     });
   }
 
+  function acts(o) {
+    var out = '<button class="btn btn-ghost btn-xs" data-act="view" data-id="' + o.id + '">详情</button>';
+    if (o.status === 'pending' && (o.payStatus || 'unpaid') === 'paid') out += '<button class="btn btn-primary btn-xs" data-act="processing" data-id="' + o.id + '">接单</button>';
+    if (o.status === 'processing') out += '<button class="btn btn-ghost btn-xs" data-act="done" data-id="' + o.id + '">完成</button>';
+    if ((o.payStatus || 'unpaid') !== 'paid') out += '<button class="btn btn-ghost btn-xs" data-act="pay" data-id="' + o.id + '">确认到账</button>';
+    if (o.status !== 'done' && o.status !== 'cancelled') out += '<button class="btn btn-ghost btn-xs" data-act="note" data-id="' + o.id + '">备注</button>';
+    return out;
+  }
+
+  function cards(items) {
+    var box = document.getElementById('orderCards');
+    box.innerHTML = items.map(function (o) {
+      return '<article class="task-card">' +
+        '<div class="task-head"><span class="mono">' + UI.escape(o.orderNo) + '</span>' +
+        '<span>' + UI.payStatus(o.payStatus || 'unpaid') + ' ' + UI.status(o.status) + '</span></div>' +
+        '<h4>' + UI.escape(o.productTitle) + '</h4>' +
+        '<div class="task-meta"><span>' + UI.escape(o.contactName) + ' ' + UI.escape(o.contactPhone) + '</span>' +
+        '<span class="money">¥' + UI.money(o.amount) + '</span></div>' +
+        '<div class="task-sub">' + UI.escape(o.game || '') + ' · ' + UI.escape(o.server || '') +
+        ' · 打手 ' + (o.assigneeName ? UI.escape(o.assigneeName) : '未派') + '</div>' +
+        '<div class="row-actions">' + acts(o) + '</div></article>';
+    }).join('');
+  }
+
   function rows() {
     var items = filtered();
     var tbody = document.getElementById('rows');
+    cards(items);
     if (!items.length) {
       tbody.innerHTML = '<tr><td colspan="8" class="console-empty">没有符合条件的订单</td></tr>';
       return;
     }
     tbody.innerHTML = items
       .map(function (o) {
-        var acts = '<button class="btn btn-ghost btn-xs" data-act="view" data-id="' + o.id + '">详情</button>';
-        if (o.status === 'pending') acts += '<button class="btn btn-primary btn-xs" data-act="processing" data-id="' + o.id + '">接单</button>';
-        if (o.status === 'processing') acts += '<button class="btn btn-ghost btn-xs" data-act="done" data-id="' + o.id + '">完成</button>';
-        if ((o.payStatus || 'unpaid') !== 'paid') acts += '<button class="btn btn-ghost btn-xs" data-act="pay" data-id="' + o.id + '">确认到账</button>';
-        if (o.status !== 'done' && o.status !== 'cancelled') acts += '<button class="btn btn-ghost btn-xs" data-act="note" data-id="' + o.id + '">备注</button>';
+        var actions = acts(o);
         return (
           '<tr>' +
           '<td class="mono">' + UI.escape(o.orderNo) + '</td>' +
@@ -64,7 +85,7 @@
           '<td>' + UI.payStatus(o.payStatus || 'unpaid') + '</td>' +
           '<td>' + UI.status(o.status) + '</td>' +
           '<td>' + (o.assigneeName ? UI.escape(o.assigneeName) : '<span class="sub">未派单</span>') + '</td>' +
-          '<td><div class="row-actions">' + acts + '</div></td>' +
+          '<td><div class="row-actions">' + actions + '</div></td>' +
           '</tr>'
         );
       })
@@ -132,11 +153,13 @@
   }
 
   function bind() {
-    document.getElementById('rows').addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-act]');
-      if (!btn) return;
-      var order = find(btn.getAttribute('data-id'));
-      if (order) act(btn.getAttribute('data-act'), order);
+    ['rows', 'orderCards'].forEach(function (id) {
+      document.getElementById(id).addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        var order = find(btn.getAttribute('data-id'));
+        if (order) act(btn.getAttribute('data-act'), order);
+      });
     });
     document.getElementById('filterStatus').addEventListener('change', function () {
       state.status = this.value; rows();

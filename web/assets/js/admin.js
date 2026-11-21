@@ -190,9 +190,19 @@
         games.map(function (g) { return '<option value="' + UI.escape(g) + '">' + UI.escape(g) + '</option>'; }).join('');
       gameSelect.value = current && (current === '全部' || games.indexOf(current) > -1) ? current : '全部';
 
+      var cards = [];
       rows.innerHTML = data.items.length
         ? data.items
             .map(function (p) {
+              cards.push('<article class="task-card">' +
+                '<div class="task-head"><span class="mono">' + UI.escape(p.game) + ' · ' + UI.escape(p.category) + '</span><span>' + (p.status === 'off' ? '已下架' : '在售') + '</span></div>' +
+                '<h4>' + UI.escape(p.title) + '</h4>' +
+                '<div class="task-meta"><span class="money">¥' + UI.money(p.price) + '</span><span>库存 ' + p.stock + '</span><span>已接 ' + Number(p.sales || 0) + '</span></div>' +
+                '<div class="row-actions">' +
+                '<button class="btn btn-ghost btn-sm" data-act="edit" data-id="' + p.id + '">编辑</button>' +
+                '<button class="btn btn-ghost btn-sm" data-act="toggle" data-id="' + p.id + '">' + (p.status === 'off' ? '上架' : '下架') + '</button>' +
+                '<button class="btn btn-sm btn-danger" data-act="del" data-id="' + p.id + '">删除</button>' +
+                '</div></article>');
               return (
                 '<tr>' +
                 '<td><img class="thumb" src="' + UI.escape(p.cover) + '" alt="" /></td>' +
@@ -214,6 +224,7 @@
             })
             .join('')
         : '<tr><td colspan="10" style="text-align:center;color:#8fa1c4;padding:26px">还没有商品，点击右上角「新增商品」开始上架</td></tr>';
+      document.getElementById('productCards').innerHTML = cards.join('') || '<div class="console-empty">还没有商品</div>';
     } catch (err) {
       rows.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
     }
@@ -366,13 +377,14 @@
       }));
       state.orders = data.items;
       document.getElementById('orderCount').textContent = '共 ' + data.total + ' 单';
+      var cards = [];
       rows.innerHTML = data.items.length
         ? data.items
             .map(function (o) {
               var actions = '';
-              if (o.status === 'pending')
+              if (o.status === 'pending' && (o.payStatus || 'unpaid') === 'paid')
                 actions += '<button class="btn btn-ghost btn-sm" data-oact="processing" data-id="' + o.id + '">接单</button>';
-              if (o.status === 'processing' || o.status === 'pending')
+              if (o.status === 'processing')
                 actions += '<button class="btn btn-ghost btn-sm" data-oact="done" data-id="' + o.id + '">完成</button>';
               if (o.status !== 'done' && o.status !== 'cancelled')
                 actions += '<button class="btn btn-ghost btn-sm" data-oact="cancelled" data-id="' + o.id + '">取消</button>';
@@ -381,6 +393,12 @@
               if (o.payStatus === 'paid')
                 actions += '<button class="btn btn-ghost btn-sm" data-oact="pay-refund" data-id="' + o.id + '">退款</button>';
               actions += '<button class="btn btn-sm btn-danger" data-oact="del" data-id="' + o.id + '">删除</button>';
+              cards.push('<article class="task-card">' +
+                '<div class="task-head"><span class="mono">' + UI.escape(o.orderNo) + '</span><span>' + UI.payStatus(o.payStatus || 'unpaid') + ' ' + UI.status(o.status) + '</span></div>' +
+                '<h4>' + UI.escape(o.productTitle) + '</h4>' +
+                '<div class="task-meta"><span>' + UI.escape(o.contactName) + ' ' + UI.escape(o.contactPhone) + '</span><span class="money">¥' + UI.money(o.amount) + '</span></div>' +
+                '<div class="task-sub">' + UI.escape(o.gameAccount) + ' · ' + (o.assigneeName ? UI.escape(o.assigneeName) : '未派单') + '</div>' +
+                '<div class="row-actions">' + actions + '</div></article>');
               return (
                 '<tr>' +
                 '<td style="color:#7fe3ff;white-space:nowrap">' + UI.escape(o.orderNo) + '</td>' +
@@ -400,6 +418,7 @@
             })
             .join('')
         : '<tr><td colspan="12" style="text-align:center;color:#8fa1c4;padding:26px">暂无订单</td></tr>';
+      document.getElementById('orderCards').innerHTML = cards.join('') || '<div class="console-empty">暂无订单</div>';
     } catch (err) {
       rows.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
     }
@@ -595,7 +614,19 @@
     try {
       var data = await API.get('/api/admin/users');
       var roleName = { owner: '董事长', manager: '管事', support: '客服', booster: '打手' };
+      var cards = [];
       rows.innerHTML = data.items.map(function (u) {
+        var ops = u.role === 'owner' ? '<span class="hint">—</span>' :
+          '<button class="btn btn-ghost btn-sm" data-uact="' + (u.status === 'off' ? 'on' : 'off') + '" data-id="' + u.id + '">' + (u.status === 'off' ? '启用' : '停用') + '</button>' +
+          '<button class="btn btn-ghost btn-sm" data-uact="pass" data-id="' + u.id + '">改密</button>' +
+          '<button class="btn btn-sm btn-danger" data-uact="del" data-id="' + u.id + '">删除</button>';
+        cards.push('<article class="task-card">' +
+          '<div class="task-head"><span class="mono">' + UI.escape(u.username) + '</span><span>' + (u.status === 'off' ? '已停用' : '在岗') + '</span></div>' +
+          '<h4>' + UI.escape(u.name) + '</h4>' +
+          '<div class="task-meta"><span>' + (roleName[u.role] || u.role) + '</span>' +
+          (u.role === 'booster' ? '<span>分成 ' + u.share + '%</span>' : '') + '</div>' +
+          '<div class="task-sub">最近登录 ' + UI.date(u.lastLoginAt) + '</div>' +
+          '<div class="row-actions">' + ops + '</div></article>');
         return '<tr>' +
           '<td>' + UI.escape(u.name) + '</td>' +
           '<td class="mono">' + UI.escape(u.username) + '</td>' +
@@ -603,13 +634,9 @@
           '<td>' + (u.role === 'booster' ? u.share + '%' : '—') + '</td>' +
           '<td>' + (u.status === 'off' ? '<span class="status-pill status-cancelled">停用</span>' : '<span class="status-pill status-done">在岗</span>') + '</td>' +
           '<td class="hint">' + UI.date(u.lastLoginAt) + '</td>' +
-          '<td><div class="td-actions">' +
-          (u.role === 'owner' ? '<span class="hint">—</span>' :
-            '<button class="btn btn-ghost btn-sm" data-uact="' + (u.status === 'off' ? 'on' : 'off') + '" data-id="' + u.id + '">' + (u.status === 'off' ? '启用' : '停用') + '</button>' +
-            '<button class="btn btn-ghost btn-sm" data-uact="pass" data-id="' + u.id + '">改密</button>' +
-            '<button class="btn btn-sm btn-danger" data-uact="del" data-id="' + u.id + '">删除</button>') +
-          '</div></td></tr>';
+          '<td><div class="td-actions">' + ops + '</div></td></tr>';
       }).join('');
+      document.getElementById('userCards').innerHTML = cards.join('');
     } catch (err) {
       rows.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ff6b81;padding:20px">' + UI.escape(err.message) + '</td></tr>';
     }
@@ -675,9 +702,11 @@
     document.getElementById('p-coverFile').addEventListener('change', function (e) {
       uploadCover(e.target.files && e.target.files[0]);
     });
-    document.getElementById('productRows').addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-act]');
-      if (btn) handleProductAction(btn.getAttribute('data-act'), btn.getAttribute('data-id'));
+    ['productRows', 'productCards'].forEach(function (id) {
+      document.getElementById(id).addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-act]');
+        if (btn) handleProductAction(btn.getAttribute('data-act'), btn.getAttribute('data-id'));
+      });
     });
     var prodTimer = null;
     document.getElementById('prodSearch').addEventListener('input', function () {
@@ -694,14 +723,18 @@
       clearTimeout(orderTimer);
       orderTimer = setTimeout(loadOrders, 260);
     });
-    document.getElementById('orderRows').addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-oact]');
-      if (btn) handleOrderAction(btn.getAttribute('data-oact'), btn.getAttribute('data-id'));
+    ['orderRows', 'orderCards'].forEach(function (id) {
+      document.getElementById(id).addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-oact]');
+        if (btn) handleOrderAction(btn.getAttribute('data-oact'), btn.getAttribute('data-id'));
+      });
     });
 
-    document.getElementById('userRows').addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-uact]');
-      if (btn) handleUserAction(btn.getAttribute('data-uact'), btn.getAttribute('data-id'));
+    ['userRows', 'userCards'].forEach(function (id) {
+      document.getElementById(id).addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-uact]');
+        if (btn) handleUserAction(btn.getAttribute('data-uact'), btn.getAttribute('data-id'));
+      });
     });
     document.getElementById('ownerUserForm').addEventListener('submit', async function (e) {
       e.preventDefault();

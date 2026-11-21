@@ -57,14 +57,22 @@
         rows.innerHTML = '<tr><td colspan="9" class="console-empty">没有订单</td></tr>';
         return;
       }
+      var cards = [];
       rows.innerHTML = data.items.map(function (o) {
         var options = '<option value="">未分配</option>' + state.boosters.map(function (b) {
           return '<option value="' + b.id + '"' + (o.assigneeId === b.id ? ' selected' : '') + '>' + UI.escape(b.name) + '</option>';
         }).join('');
         var acts = '';
-        if (o.status === 'pending') acts += '<button class="btn btn-primary btn-xs" data-oact="processing" data-id="' + o.id + '">接单</button>';
+        if (o.status === 'pending' && (o.payStatus || 'unpaid') === 'paid') acts += '<button class="btn btn-primary btn-xs" data-oact="processing" data-id="' + o.id + '">接单</button>';
         if (o.status === 'processing') acts += '<button class="btn btn-ghost btn-xs" data-oact="done" data-id="' + o.id + '">完成</button>';
         if ((o.payStatus || 'unpaid') !== 'paid') acts += '<button class="btn btn-ghost btn-xs" data-oact="pay" data-id="' + o.id + '">确认到账</button>';
+        cards.push('<article class="task-card">' +
+          '<div class="task-head"><span class="mono">' + UI.escape(o.orderNo) + '</span><span>' + UI.payStatus(o.payStatus || 'unpaid') + ' ' + UI.status(o.status) + '</span></div>' +
+          '<h4>' + UI.escape(o.productTitle) + '</h4>' +
+          '<div class="task-meta"><span>' + UI.escape(o.contactName) + ' ' + UI.escape(o.contactPhone) + '</span><span class="money">¥' + UI.money(o.amount) + '</span></div>' +
+          '<div class="task-sub">' + UI.escape(o.game || '') + ' · 打手 ' + (o.assigneeName ? UI.escape(o.assigneeName) : '未派') + '</div>' +
+          '<select class="tiny-select" data-assign="' + o.id + '">' + options + '</select>' +
+          '<div class="row-actions">' + acts + '</div></article>');
         return '<tr>' +
           '<td class="mono">' + UI.escape(o.orderNo) + '</td>' +
           '<td>' + UI.escape(o.productTitle) + '<div class="sub">' + UI.escape(o.game || '') + '</div></td>' +
@@ -76,8 +84,10 @@
           '<td><select class="tiny-select" data-assign="' + o.id + '">' + options + '</select></td>' +
           '<td><div class="row-actions">' + acts + '</div></td></tr>';
       }).join('');
+      document.getElementById('orderCards').innerHTML = cards.join('');
     } catch (err) {
       rows.innerHTML = '<tr><td colspan="9" class="console-empty">' + UI.escape(err.message) + '</td></tr>';
+      document.getElementById('orderCards').innerHTML = '<div class="console-empty">' + UI.escape(err.message) + '</div>';
     }
   }
 
@@ -174,9 +184,7 @@
     });
     document.getElementById('oReload').addEventListener('click', loadOrders);
 
-    document.getElementById('oRows').addEventListener('click', async function (e) {
-      var btn = e.target.closest('button[data-oact]');
-      if (!btn) return;
+    async function orderAction(btn) {
       var id = btn.getAttribute('data-id');
       try {
         var act = btn.getAttribute('data-oact');
@@ -185,15 +193,25 @@
         UI.toast('已更新', 'ok');
         loadOrders(); loadOverview();
       } catch (err) { UI.toast(err.message, 'err'); }
-    });
-    document.getElementById('oRows').addEventListener('change', async function (e) {
-      var sel = e.target.closest('select[data-assign]');
-      if (!sel) return;
+    }
+
+    async function assignOrder(sel) {
       try {
         await API.put('/api/admin/orders/' + encodeURIComponent(sel.getAttribute('data-assign')) + '/assign', { userId: sel.value });
         UI.toast(sel.value ? '已派单' : '已取消派单', 'ok');
         loadOrders();
       } catch (err) { UI.toast(err.message, 'err'); sel.value = ''; }
+    }
+
+    ['oRows', 'orderCards'].forEach(function (boxId) {
+      document.getElementById(boxId).addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-oact]');
+        if (btn) orderAction(btn);
+      });
+      document.getElementById(boxId).addEventListener('change', function (e) {
+        var sel = e.target.closest('select[data-assign]');
+        if (sel) assignOrder(sel);
+      });
     });
 
     document.getElementById('pRows').addEventListener('click', async function (e) {
