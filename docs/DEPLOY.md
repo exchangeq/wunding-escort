@@ -3,8 +3,8 @@
 ## Python
 
 ```bash
-unzip wunding-escort-python-2.0.0.zip
-cd wunding-escort-python-2.0.0
+unzip wunding-escort-python-2.2.0.zip
+cd wunding-escort-python-2.2.0
 
 sudo cp deploy/wunding-escort-py.service /etc/systemd/system/
 sudo mkdir -p /opt/wunding-escort
@@ -16,11 +16,13 @@ sudo systemctl enable --now wunding-escort-py
 
 systemd 文件里记得把 `SESSION_SECRET` 换成随机值，`WorkingDirectory` 按实际路径改。
 
+四个入口都在同一个端口：`/` 前台、`/admin/` 董事长、`/manager/` 管事、`/support/` 客服、`/staff/` 打手。Nginx 反代整个站点即可，不需要为每个端单独配域名。
+
 ## Go
 
 ```bash
-unzip wunding-escort-go-2.0.0-linux-amd64.zip
-cd wunding-escort-go-2.0.0-linux-amd64
+unzip wunding-escort-go-2.2.0-linux-amd64.zip
+cd wunding-escort-go-2.2.0-linux-amd64
 
 sudo cp ../deploy/wunding-escort-go.service /etc/systemd/system/
 sudo mkdir -p /opt/wunding-escort

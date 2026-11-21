@@ -359,7 +359,7 @@ func handleCreateOrder(c *ctx, body map[string]any) error {
 				Price: p.Price, Unit: p.Unit, Qty: qty, Amount: amount,
 				ContactName: contactName, ContactPhone: contactPhone,
 				GameAccount: gameAccount, Server: server, Note: note,
-				Status: "pending", PayStatus: "unpaid",
+				Status: "pending", PayStatus: "unpaid", Progress: []Progress{},
 				CreatedAt: nowISO(), UpdatedAt: nowISO(),
 			}
 			db.Orders = append([]Order{order}, db.Orders...)
@@ -432,9 +432,21 @@ func handleTrackOrder(c *ctx, _ map[string]any) error {
 		"payAt":        order.PayAt,
 		"payProof":     order.PayProof,
 		"payment":      publicPayment(settings.Payment),
-		"createdAt":    order.CreatedAt,
-		"updatedAt":    order.UpdatedAt,
-		"kefu":         settings.Kefu,
+		"assigneeName": order.AssigneeName,
+		"progress": func() []map[string]any {
+			out := []map[string]any{}
+			items := order.Progress
+			if len(items) > 8 {
+				items = items[len(items)-8:]
+			}
+			for _, p := range items {
+				out = append(out, map[string]any{"at": p.At, "byName": p.ByName, "text": p.Text})
+			}
+			return out
+		}(),
+		"createdAt": order.CreatedAt,
+		"updatedAt": order.UpdatedAt,
+		"kefu":      settings.Kefu,
 	})
 	return nil
 }
@@ -486,6 +498,45 @@ func (l *loginLimit) clear(ip string) {
 	delete(l.records, ip)
 }
 
+func findUser(db *DB, username string) *User {
+	for i := range db.Users {
+		if strings.EqualFold(db.Users[i].Username, username) {
+			return &db.Users[i]
+		}
+	}
+	return nil
+}
+
+func userByID(db *DB, id string) *User {
+	for i := range db.Users {
+		if db.Users[i].ID == id {
+			return &db.Users[i]
+		}
+	}
+	return nil
+}
+
+func currentUser(c *ctx) (*DB, *User, *APIError) {
+	var dbCopy DB
+	if err := Read(func(db *DB) { dbCopy = *db }); err != nil {
+		return nil, nil, apiError(500, "数据读取失败", "STORE_ERROR")
+	}
+	uid, _ := c.user["uid"].(string)
+	user := userByID(&dbCopy, uid)
+	if user == nil || user.Status == "off" {
+		return nil, nil, apiError(401, "账号已停用或不存在", "UNAUTHORIZED")
+	}
+	return &dbCopy, user, nil
+}
+
+func userJSON(u *User) map[string]any {
+	return map[string]any{
+		"id": u.ID, "username": u.Username, "name": u.Name, "role": u.Role,
+		"phone": u.Phone, "share": u.Share, "status": u.Status,
+		"createdAt": u.CreatedAt, "lastLoginAt": u.LoginAt,
+	}
+}
+
 func handleLogin(c *ctx, body map[string]any) error {
 	if err := loginLimits.check(c.ip); err != nil {
 		return err
@@ -496,49 +547,67 @@ func handleLogin(c *ctx, body map[string]any) error {
 		return apiError(400, "账号和密码都要填", "VALIDATION")
 	}
 
-	var admin Admin
-	if err := Read(func(db *DB) { admin = db.Admin }); err != nil {
+	var found User
+	var exists bool
+	if err := Read(func(db *DB) {
+		if u := findUser(db, username); u != nil {
+			found = *u
+			exists = true
+		}
+	}); err != nil {
 		return apiError(500, "数据读取失败", "STORE_ERROR")
 	}
-	if !strings.EqualFold(username, admin.Username) || !verifyPassword(password, admin.PasswordHash) {
+	if !exists || found.Status == "off" || !verifyPassword(password, found.PasswordHash) {
 		loginLimits.fail(c.ip)
 		return apiError(401, "账号或密码不对", "BAD_CREDENTIALS")
 	}
 	loginLimits.clear(c.ip)
 
 	_ = Update(func(db *DB) {
-		db.Admin.LastLoginAt = nowISO()
-		addLog(db, "管理员登录")
+		if u := findUser(db, username); u != nil {
+			u.LoginAt = nowISO()
+			if u.Role == "owner" {
+				db.Admin.LastLoginAt = nowISO()
+			}
+			addLog(db, firstNonEmpty(u.Name, u.Username)+" 登录")
+		}
 	})
 
-	token, err := signToken(admin.Username)
+	token, err := signToken(found)
 	if err != nil {
 		return apiError(500, "令牌生成失败", "TOKEN_ERROR")
 	}
+	public := userJSON(&found)
 	okData(c.w, map[string]any{
 		"token":     token,
 		"expiresIn": tokenTTLSeconds,
-		"admin":     map[string]any{"username": admin.Username, "displayName": admin.DisplayName},
+		"user":      public,
+		"role":      found.Role,
+		"admin":     map[string]any{"username": found.Username, "displayName": found.Name},
 	})
 	return nil
 }
 
 func handleMe(c *ctx, _ map[string]any) error {
-	var admin Admin
 	var s Settings
+	var user User
 	if err := Read(func(db *DB) {
-		admin = db.Admin
 		s = db.Settings
+		uid, _ := c.user["uid"].(string)
+		if u := userByID(db, uid); u != nil {
+			user = *u
+		}
 	}); err != nil {
 		return apiError(500, "数据读取失败", "STORE_ERROR")
 	}
+	if user.ID == "" {
+		return apiError(401, "账号不存在", "UNAUTHORIZED")
+	}
 	okData(c.w, map[string]any{
-		"username":    admin.Username,
-		"displayName": admin.DisplayName,
-		"siteName":    s.SiteName,
-		"company":     s.Company,
-		"copyright":   s.Copyright,
-		"lastLoginAt": admin.LastLoginAt,
+		"id": user.ID, "username": user.Username, "name": user.Name,
+		"displayName": user.Name, "role": user.Role, "share": user.Share,
+		"status": user.Status, "siteName": s.SiteName, "company": s.Company,
+		"copyright": s.Copyright, "lastLoginAt": user.LoginAt,
 	})
 	return nil
 }
@@ -548,11 +617,13 @@ func handleOverview(c *ctx, _ map[string]any) error {
 		orders   []Order
 		products []Product
 		logs     []Log
+		users    []User
 	)
 	if err := Read(func(db *DB) {
 		orders = append([]Order{}, db.Orders...)
 		products = append([]Product{}, db.Products...)
 		logs = append([]Log{}, db.Logs...)
+		users = append([]User{}, db.Users...)
 	}); err != nil {
 		return apiError(500, "数据读取失败", "STORE_ERROR")
 	}
@@ -561,7 +632,7 @@ func handleOverview(c *ctx, _ map[string]any) error {
 	totals := map[string]any{
 		"orders": len(orders), "pending": 0, "processing": 0, "done": 0, "cancelled": 0,
 		"todayOrders": 0, "revenue": 0.0, "products": len(products), "onSale": 0,
-		"unpaid": 0, "payReview": 0, "paid": 0,
+		"unpaid": 0, "payReview": 0, "paid": 0, "unassigned": 0, "boosters": 0,
 	}
 	revenue := 0.0
 	for _, p := range products {
@@ -586,6 +657,16 @@ func handleOverview(c *ctx, _ map[string]any) error {
 			totals["payReview"] = totals["payReview"].(int) + 1
 		case "paid":
 			totals["paid"] = totals["paid"].(int) + 1
+		}
+	}
+	for _, u := range users {
+		if u.Role == "booster" && u.Status != "off" {
+			totals["boosters"] = totals["boosters"].(int) + 1
+		}
+	}
+	for _, o := range orders {
+		if o.AssigneeID == "" && o.Status != "cancelled" {
+			totals["unassigned"] = totals["unassigned"].(int) + 1
 		}
 	}
 	totals["revenue"] = round2(revenue)
@@ -809,18 +890,24 @@ func validStatus(status string) bool {
 func handleUpdateOrder(c *ctx, body map[string]any) error {
 	oid := c.params["id"]
 	status := bodyString(body, "status", 20)
-	if !validStatus(status) {
+	if status != "" && !validStatus(status) {
 		return apiError(400, "订单状态不对", "VALIDATION")
 	}
+	note, hasNote := body["supportNote"].(string)
 	var updated Order
 	found := false
 	_ = Update(func(db *DB) {
 		for i := range db.Orders {
 			o := &db.Orders[i]
 			if o.ID == oid || o.OrderNo == oid {
-				o.Status = status
+				if status != "" {
+					o.Status = status
+				}
+				if hasNote {
+					o.SupportNote = substr(note, 500)
+				}
 				o.UpdatedAt = nowISO()
-				addLog(db, "订单 "+o.OrderNo+" → "+status)
+				addLog(db, "订单 "+o.OrderNo+" → "+firstNonEmpty(status, "更新备注"))
 				updated = *o
 				found = true
 				return
@@ -860,6 +947,9 @@ func handleGetSettings(c *ctx, _ map[string]any) error {
 	var s Settings
 	if err := Read(func(db *DB) { s = db.Settings }); err != nil {
 		return apiError(500, "数据读取失败", "STORE_ERROR")
+	}
+	if _, u, err := currentUser(c); err == nil && u.Role != "owner" {
+		s.Payment.Epay.Key = ""
 	}
 	okData(c.w, s)
 	return nil
@@ -902,7 +992,8 @@ func handleUpdateSettings(c *ctx, body map[string]any) error {
 				Phone: bodyString(kefu, "phone", 40), Hours: bodyString(kefu, "hours", 60),
 			}
 		}
-		if payment, ok := body["payment"].(map[string]any); ok {
+		role, _ := c.user["role"].(string)
+		if payment, ok := body["payment"].(map[string]any); role == "owner" && ok {
 			manual, _ := payment["manual"].(map[string]any)
 			epay, _ := payment["epay"].(map[string]any)
 			ptype := bodyString(epay, "type", 10)
@@ -997,16 +1088,29 @@ func handleChangePassword(c *ctx, body map[string]any) error {
 	if len(newPass) < 6 {
 		return apiError(400, "新密码至少 6 位", "VALIDATION")
 	}
-	var admin Admin
-	if err := Read(func(db *DB) { admin = db.Admin }); err != nil {
+	uid, _ := c.user["uid"].(string)
+	var user User
+	if err := Read(func(db *DB) {
+		if u := userByID(db, uid); u != nil {
+			user = *u
+		}
+	}); err != nil {
 		return apiError(500, "数据读取失败", "STORE_ERROR")
 	}
-	if !verifyPassword(old, admin.PasswordHash) {
+	if user.ID == "" {
+		return apiError(401, "账号不存在", "UNAUTHORIZED")
+	}
+	if !verifyPassword(old, user.PasswordHash) {
 		return apiError(401, "原密码不对", "BAD_CREDENTIALS")
 	}
 	_ = Update(func(db *DB) {
-		db.Admin.PasswordHash = hashPassword(newPass)
-		addLog(db, "管理员改密码")
+		if u := userByID(db, uid); u != nil {
+			u.PasswordHash = hashPassword(newPass)
+			if u.Role == "owner" {
+				db.Admin.PasswordHash = u.PasswordHash
+			}
+			addLog(db, firstNonEmpty(u.Name, u.Username)+" 修改密码")
+		}
 	})
 	okData(c.w, map[string]any{"changed": true})
 	return nil

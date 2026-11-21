@@ -13,11 +13,15 @@
     cover: ''
   };
 
+  var ROLE_HOME = { manager: '/manager/', support: '/support/', booster: '/staff/' };
+
   var VIEW_META = {
     overview: ['数据总览', '实时掌握平台经营与订单情况'],
     products: ['商品管理', '上架、编辑、下架护航服务，支持图片上传'],
     orders: ['订单管理', '接单、推进状态、处理售后与删单'],
-    settings: ['站点设置', '品牌文案、客服信息、版权与首页数据'],
+    settings: ['站点设置', '品牌文案、客服信息、收款与版权'],
+    users: ['团队账号', '管事、客服、打手的账号与权限'],
+    logs: ['操作日志', '谁在什么时候做了什么'],
     security: ['账号安全', '修改后台登录密码']
   };
 
@@ -37,6 +41,10 @@
   async function loadMe() {
     try {
       var me = await API.get('/api/admin/me');
+      if (me.role !== 'owner') {
+        location.href = ROLE_HOME[me.role] || '/';
+        return;
+      }
       document.getElementById('whoName').textContent = me.displayName || me.username;
       document.querySelectorAll('[data-site="company"]').forEach(function (el) {
         el.textContent = me.company || '无定科技';
@@ -59,6 +67,11 @@
         password: document.getElementById('password').value
       });
       API.setToken(data.token);
+      var role = (data.user && data.user.role) || data.role;
+      if (role !== 'owner') {
+        location.href = ROLE_HOME[role] || '/';
+        return;
+      }
       UI.toast('登录成功，欢迎回来', 'ok');
       showAdmin();
     } catch (err) {
@@ -92,6 +105,8 @@
     if (view === 'products') loadProducts();
     if (view === 'orders') loadOrders();
     if (view === 'settings') loadSettings();
+    if (view === 'users') loadUsers();
+    if (view === 'logs') loadLogs();
   }
 
   /* ------------------------------ 总览 ------------------------------ */
@@ -103,7 +118,7 @@
       var t = data.totals;
       grid.innerHTML = [
         ['订单总数', t.orders, '单'],
-        ['待接单', t.pending, '单'],
+        ['待处理', t.pending, '含未付款'],
         ['护航中', t.processing, '单'],
         ['已完成', t.done, '单'],
         ['今日新增', t.todayOrders, '单'],
@@ -161,7 +176,7 @@
     var q = document.getElementById('prodSearch').value.trim();
     var game = document.getElementById('prodGame').value;
     var rows = document.getElementById('productRows');
-    rows.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px">加载中…</td></tr>';
+    rows.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px">加载中…</td></tr>';
     try {
       var data = await API.get('/api/admin/products' + UI.params({ q: q, game: game }));
       state.products = data.items;
@@ -200,7 +215,7 @@
             .join('')
         : '<tr><td colspan="10" style="text-align:center;color:#8fa1c4;padding:26px">还没有商品，点击右上角「新增商品」开始上架</td></tr>';
     } catch (err) {
-      rows.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
+      rows.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
     }
   }
 
@@ -343,7 +358,7 @@
   /* ------------------------------ 订单 ------------------------------ */
   async function loadOrders() {
     var rows = document.getElementById('orderRows');
-    rows.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px">加载中…</td></tr>';
+    rows.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px">加载中…</td></tr>';
     try {
       var data = await API.get('/api/admin/orders' + UI.params({
         status: document.getElementById('orderStatus').value,
@@ -373,6 +388,7 @@
                 '<td>' + o.qty + '</td>' +
                 '<td style="color:#ffc75a">¥' + UI.money(o.amount) + '</td>' +
                 '<td>' + UI.payStatus(o.payStatus || 'unpaid') + '</td>' +
+                '<td>' + (o.assigneeName ? UI.escape(o.assigneeName) : '<span class="hint">未派单</span>') + '</td>' +
                 '<td>' + UI.escape(o.contactName) + '<div class="hint">' + UI.escape(o.contactPhone) + '</div></td>' +
                 '<td>' + UI.escape(o.gameAccount) + '<div class="hint">' + UI.escape(o.server || '') + '</div></td>' +
                 '<td style="max-width:180px;color:#8fa1c4;font-size:12px">' + UI.escape(o.note || '—') + '</td>' +
@@ -383,7 +399,7 @@
               );
             })
             .join('')
-        : '<tr><td colspan="11" style="text-align:center;color:#8fa1c4;padding:26px">暂无订单</td></tr>';
+        : '<tr><td colspan="12" style="text-align:center;color:#8fa1c4;padding:26px">暂无订单</td></tr>';
     } catch (err) {
       rows.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
     }
@@ -572,6 +588,65 @@
     }
   }
 
+  /* ------------------------------ 团队账号 ------------------------------ */
+  async function loadUsers() {
+    var rows = document.getElementById('userRows');
+    rows.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px">加载中…</td></tr>';
+    try {
+      var data = await API.get('/api/admin/users');
+      var roleName = { owner: '董事长', manager: '管事', support: '客服', booster: '打手' };
+      rows.innerHTML = data.items.map(function (u) {
+        return '<tr>' +
+          '<td>' + UI.escape(u.name) + '</td>' +
+          '<td class="mono">' + UI.escape(u.username) + '</td>' +
+          '<td>' + (roleName[u.role] || u.role) + '</td>' +
+          '<td>' + (u.role === 'booster' ? u.share + '%' : '—') + '</td>' +
+          '<td>' + (u.status === 'off' ? '<span class="status-pill status-cancelled">停用</span>' : '<span class="status-pill status-done">在岗</span>') + '</td>' +
+          '<td class="hint">' + UI.date(u.lastLoginAt) + '</td>' +
+          '<td><div class="td-actions">' +
+          (u.role === 'owner' ? '<span class="hint">—</span>' :
+            '<button class="btn btn-ghost btn-sm" data-uact="' + (u.status === 'off' ? 'on' : 'off') + '" data-id="' + u.id + '">' + (u.status === 'off' ? '启用' : '停用') + '</button>' +
+            '<button class="btn btn-ghost btn-sm" data-uact="pass" data-id="' + u.id + '">改密</button>' +
+            '<button class="btn btn-sm btn-danger" data-uact="del" data-id="' + u.id + '">删除</button>') +
+          '</div></td></tr>';
+      }).join('');
+    } catch (err) {
+      rows.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ff6b81;padding:20px">' + UI.escape(err.message) + '</td></tr>';
+    }
+  }
+
+  async function loadLogs() {
+    try {
+      var data = await API.get('/api/admin/logs');
+      document.getElementById('ownerLogList').innerHTML = data.items.map(function (l) {
+        return '<li><span>' + UI.date(l.at) + '</span><b>' + UI.escape(l.action) + '</b></li>';
+      }).join('');
+    } catch (err) {
+      UI.toast(err.message, 'err');
+    }
+  }
+
+  async function handleUserAction(act, id) {
+    try {
+      if (act === 'del') {
+        if (!confirm('确定删除这个账号？他手上的未完成订单会退回未派单。')) return;
+        await API.del('/api/admin/users/' + encodeURIComponent(id));
+        UI.toast('账号已删除', 'ok');
+      } else if (act === 'pass') {
+        var pass = prompt('新密码，至少 6 位');
+        if (!pass) return;
+        await API.put('/api/admin/users/' + encodeURIComponent(id), { password: pass });
+        UI.toast('密码已重置', 'ok');
+      } else {
+        await API.put('/api/admin/users/' + encodeURIComponent(id), { status: act });
+        UI.toast(act === 'off' ? '账号已停用' : '账号已启用', 'ok');
+      }
+      loadUsers();
+    } catch (err) {
+      UI.toast(err.message, 'err');
+    }
+  }
+
   /* ------------------------------ 事件绑定 ------------------------------ */
   function bind() {
     document.getElementById('loginForm').addEventListener('submit', login);
@@ -622,6 +697,29 @@
     document.getElementById('orderRows').addEventListener('click', function (e) {
       var btn = e.target.closest('button[data-oact]');
       if (btn) handleOrderAction(btn.getAttribute('data-oact'), btn.getAttribute('data-id'));
+    });
+
+    document.getElementById('userRows').addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-uact]');
+      if (btn) handleUserAction(btn.getAttribute('data-uact'), btn.getAttribute('data-id'));
+    });
+    document.getElementById('ownerUserForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      try {
+        await API.post('/api/admin/users', {
+          name: document.getElementById('ou-name').value.trim(),
+          username: document.getElementById('ou-user').value.trim(),
+          password: document.getElementById('ou-pass').value,
+          role: document.getElementById('ou-role').value,
+          share: Number(document.getElementById('ou-share').value) || 0
+        });
+        UI.toast('账号已创建', 'ok');
+        this.reset();
+        document.getElementById('ou-share').value = 60;
+        loadUsers();
+      } catch (err) {
+        UI.toast(err.message, 'err');
+      }
     });
 
     // 设置

@@ -47,7 +47,9 @@
         <button data-view="overview" class="active">数据总览</button>
         <button data-view="products">商品管理</button>
         <button data-view="orders">订单管理</button>
+        <button data-view="users">团队账号</button>
         <button data-view="settings">站点设置</button>
+        <button data-view="logs">操作日志</button>
         <button data-view="security">账号安全</button>
       </nav>
       <div class="side-foot">
@@ -129,11 +131,44 @@
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>订单号</th><th>服务</th><th>数量</th><th>金额</th><th>付款</th><th>联系人</th><th>游戏账号</th><th>备注</th><th>状态</th><th>下单时间</th><th>操作</th></tr>
+                <tr><th>订单号</th><th>服务</th><th>数量</th><th>金额</th><th>付款</th><th>打手</th><th>联系人</th><th>游戏账号</th><th>备注</th><th>状态</th><th>下单时间</th><th>操作</th></tr>
               </thead>
               <tbody id="orderRows"></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <!-- 团队账号 -->
+      <section class="admin-view" data-view="users">
+        <div class="admin-panel">
+          <div class="admin-panel-head"><h3>团队账号</h3><span class="hint">董事长可建管事 / 客服 / 打手</span></div>
+          <form class="inline-form" id="ownerUserForm">
+            <input id="ou-name" placeholder="姓名" maxlength="30" required />
+            <input id="ou-user" placeholder="登录账号" maxlength="20" required />
+            <input id="ou-pass" placeholder="初始密码（≥6 位）" maxlength="40" required />
+            <select id="ou-role">
+              <option value="manager">管事</option>
+              <option value="support">客服</option>
+              <option value="booster">打手</option>
+            </select>
+            <input id="ou-share" type="number" min="0" max="100" value="60" title="打手分成 %" style="width:90px" />
+            <button class="btn btn-primary btn-sm" type="submit">新增账号</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>姓名</th><th>账号</th><th>角色</th><th>分成</th><th>状态</th><th>最近登录</th><th>操作</th></tr></thead>
+              <tbody id="userRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 操作日志 -->
+      <section class="admin-view" data-view="logs">
+        <div class="admin-panel">
+          <div class="admin-panel-head"><h3>操作日志</h3><span class="hint">最近 80 条</span></div>
+          <ul class="log-list" id="ownerLogList"></ul>
         </div>
       </section>
 

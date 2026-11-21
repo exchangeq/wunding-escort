@@ -93,10 +93,12 @@ func b64(raw []byte) string {
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
-func signToken(username string) (string, error) {
+func signToken(user User) (string, error) {
 	payload := map[string]any{
-		"u":    username,
-		"role": "admin",
+		"u":    user.Username,
+		"role": user.Role,
+		"uid":  user.ID,
+		"name": user.Name,
 		"exp":  time.Now().Unix() + tokenTTLSeconds,
 	}
 	raw, err := json.Marshal(payload)

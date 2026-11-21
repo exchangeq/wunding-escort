@@ -88,7 +88,10 @@ PAGE="$(curl -fsS "$BASE/")"
 contains "$PAGE" "无定科技" || die "首页没有版权信息"
 contains "$PAGE" "后台入口" || die "首页导航缺失"
 curl -fsS "$BASE/admin/" | grep -c "运营后台" > /dev/null || die "后台页面异常"
-pass "前台与后台页面正常"
+for page in manager support staff; do
+  curl -fsS "$BASE/$page" | grep -ci "无定科技" > /dev/null || die "/$page 页面异常"
+done
+pass "前台、后台与三个工作台页面正常"
 
 CODE="$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/admin/orders")"
 [ "$CODE" = "401" ] || die "后台接口没鉴权（$CODE）"
@@ -193,6 +196,87 @@ bad = req('/api/pay/notify?' + urllib.parse.urlencode(values), raw=True)
 assert bad.strip() == 'fail', '错误签名没被拒绝'
 print('✓ 在线支付下单链接与异步通知验签正常')
 print('✓ 错误签名被拒绝')
+PY
+
+# ---- 多角色：账号 / 权限 / 派单 / 打手接单与进度 ----
+python3 - "$BASE" "$AUTH" "$NO" <<'PY'
+import json, sys, urllib.error, urllib.request
+base, owner_token, order_no = sys.argv[1:4]
+
+def req(path, method='GET', body=None, token=None, expect=200):
+    data = json.dumps(body).encode() if body is not None else None
+    headers = {'Content-Type': 'application/json'}
+    if token:
+        headers['Authorization'] = 'Bearer ' + token
+    try:
+        with urllib.request.urlopen(urllib.request.Request(base + path, method=method, data=data, headers=headers)) as r:
+            code, payload = r.status, json.loads(r.read())
+    except urllib.error.HTTPError as err:
+        code, payload = err.code, json.loads(err.read())
+    assert code == expect, '%s %s -> %s %s' % (method, path, code, payload)
+    return payload.get('data', payload)
+
+owner = owner_token.replace('Authorization: Bearer ', '').strip()
+users = {}
+for username, name, role, share in [('kf02', '测试客服', 'support', 0), ('dh02', '测试打手', 'booster', 55), ('gl02', '测试管事', 'manager', 0)]:
+    users[username] = req('/api/admin/users', 'POST', {
+        'username': username, 'name': name, 'role': role, 'password': 'smoke1234', 'share': share
+    }, owner, expect=201)['id']
+print('✓ 董事长可创建客服 / 打手 / 管事账号')
+
+tokens = {}
+for username in users:
+    tokens[username] = req('/api/auth/login', 'POST', {'username': username, 'password': 'smoke1234'})['token']
+
+req('/api/admin/orders', token=tokens['kf02'])
+req('/api/admin/products', token=tokens['kf02'], expect=403)
+req('/api/admin/users', token=tokens['kf02'], expect=403)
+print('✓ 客服可处理订单，但看不到商品与账号管理')
+
+req('/api/admin/orders', token=tokens['dh02'], expect=403)
+req('/api/admin/orders', token=tokens['gl02'])
+print('✓ 打手被挡在后台接口外，管事可查看订单')
+
+listed = req('/api/admin/users', token=tokens['gl02'])['items']
+assert all(u['role'] in ('support', 'booster') for u in listed), listed
+assert not any(u['username'] == 'smoke' for u in listed)
+req('/api/admin/users', 'POST', {'username': 'gl03', 'name': '越权管事', 'role': 'manager', 'password': 'smoke1234'}, tokens['gl02'], expect=403)
+print('✓ 管事只能看到 / 新建客服和打手，不能新建管事')
+
+settings = req('/api/admin/settings', token=tokens['gl02'])
+assert settings['payment']['epay']['key'] == '', settings['payment']['epay']
+assert req('/api/admin/settings', token=owner)['payment']['epay']['key'] == 'smoke-epay-key'
+print('✓ 支付密钥只对董事长可见')
+
+pool = req('/api/staff/orders?scope=pool', token=tokens['dh02'])['items']
+assert any(o['orderNo'] == order_no for o in pool), [o['orderNo'] for o in pool]
+assert all(o['payStatus'] == 'paid' for o in pool)
+assert all('payProof' not in o for o in pool)
+assert all('****' in o['contactPhone'] for o in pool)
+print('✓ 打手接单池只给已付款、未派单，手机号已脱敏')
+
+claimed = req('/api/staff/orders/%s/claim' % order_no, 'POST', {}, tokens['dh02'])
+assert claimed['assigneeId'] == users['dh02']
+req('/api/staff/orders/%s/progress' % order_no, 'POST', {'text': '冒烟进度：已上号'}, tokens['dh02'], expect=201)
+req('/api/staff/orders/%s/status' % order_no, 'POST', {'status': 'processing'}, tokens['dh02'])
+mine = req('/api/staff/orders?scope=mine', token=tokens['dh02'])['items']
+assert len(mine) == 1 and mine[0]['progress'][-1]['text'] == '冒烟进度：已上号', mine
+summary = req('/api/staff/summary', token=tokens['dh02'])
+assert summary['processing'] >= 1 and summary['share'] == 55, summary
+print('✓ 打手接单 → 报进度 → 开始护航，汇总正确')
+
+detail = req('/api/orders/' + order_no)
+assert detail['assigneeName'] == '测试打手', detail
+assert detail['progress'][-1]['text'] == '冒烟进度：已上号'
+print('✓ 公开订单查询能看到打手与最新进度')
+
+req('/api/admin/orders/%s/assign' % order_no, 'PUT', {'userId': users['dh02']}, tokens['gl02'])
+req('/api/admin/orders/%s/assign' % order_no, 'PUT', {'userId': ''}, tokens['kf02'], expect=403)
+print('✓ 管事可派单，客服不可派单')
+
+logs = req('/api/admin/logs', token=tokens['gl02'])['items']
+assert logs, '没有操作日志'
+print('✓ 操作日志有记录（%d 条）' % len(logs))
 PY
 
 TRACK="$(get "$BASE/api/orders/$NO")"

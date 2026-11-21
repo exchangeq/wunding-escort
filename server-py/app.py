@@ -24,7 +24,17 @@ PORT = int(os.environ.get("PORT") or 8080)
 HOST = os.environ.get("HOST") or "0.0.0.0"
 
 PUBLIC = "public"
-AUTH = "admin"
+STAFF = "staff"
+SUPPORT = "support"
+MANAGER = "manager"
+OWNER = "owner"
+
+ALLOWED = {
+    STAFF: {"owner", "manager", "support", "booster"},
+    SUPPORT: {"owner", "manager", "support"},
+    MANAGER: {"owner", "manager"},
+    OWNER: {"owner"},
+}
 
 ROUTES = [
     ("GET", "/api/health", "health", PUBLIC),
@@ -39,20 +49,35 @@ ROUTES = [
     ("POST", "/api/pay/notify", "epay_notify", PUBLIC),
     ("GET", "/api/pay/return", "epay_return", PUBLIC),
     ("POST", "/api/admin/login", "login", PUBLIC),
-    ("GET", "/api/admin/me", "me", AUTH),
-    ("GET", "/api/admin/overview", "overview", AUTH),
-    ("GET", "/api/admin/products", "admin_products", AUTH),
-    ("POST", "/api/admin/products", "create_product", AUTH),
-    ("PUT", "/api/admin/products/{id}", "update_product", AUTH),
-    ("DELETE", "/api/admin/products/{id}", "delete_product", AUTH),
-    ("GET", "/api/admin/orders", "admin_orders", AUTH),
-    ("PUT", "/api/admin/orders/{id}", "update_order", AUTH),
-    ("PUT", "/api/admin/orders/{id}/payment", "admin_order_payment", AUTH),
-    ("DELETE", "/api/admin/orders/{id}", "delete_order", AUTH),
-    ("GET", "/api/admin/settings", "get_settings", AUTH),
-    ("PUT", "/api/admin/settings", "update_settings", AUTH),
-    ("POST", "/api/admin/upload", "upload", AUTH),
-    ("POST", "/api/admin/password", "change_password", AUTH),
+    ("GET", "/api/admin/me", "me", STAFF),
+    ("POST", "/api/auth/login", "login", PUBLIC),
+    ("GET", "/api/auth/me", "me", STAFF),
+    ("POST", "/api/auth/password", "change_password", STAFF),
+    ("GET", "/api/staff/orders", "staff_orders", STAFF),
+    ("GET", "/api/staff/orders/{id}", "staff_order_detail", STAFF),
+    ("POST", "/api/staff/orders/{id}/claim", "staff_claim", STAFF),
+    ("POST", "/api/staff/orders/{id}/progress", "staff_progress", STAFF),
+    ("POST", "/api/staff/orders/{id}/status", "staff_status", STAFF),
+    ("GET", "/api/staff/summary", "staff_summary", STAFF),
+    ("GET", "/api/admin/users", "admin_users", MANAGER),
+    ("POST", "/api/admin/users", "create_user", MANAGER),
+    ("PUT", "/api/admin/users/{id}", "update_user", MANAGER),
+    ("DELETE", "/api/admin/users/{id}", "delete_user", OWNER),
+    ("GET", "/api/admin/logs", "admin_logs", MANAGER),
+    ("PUT", "/api/admin/orders/{id}/assign", "assign_order", MANAGER),
+    ("GET", "/api/admin/overview", "overview", SUPPORT),
+    ("GET", "/api/admin/products", "admin_products", MANAGER),
+    ("POST", "/api/admin/products", "create_product", MANAGER),
+    ("PUT", "/api/admin/products/{id}", "update_product", MANAGER),
+    ("DELETE", "/api/admin/products/{id}", "delete_product", OWNER),
+    ("GET", "/api/admin/orders", "admin_orders", SUPPORT),
+    ("PUT", "/api/admin/orders/{id}", "update_order", SUPPORT),
+    ("PUT", "/api/admin/orders/{id}/payment", "admin_order_payment", SUPPORT),
+    ("DELETE", "/api/admin/orders/{id}", "delete_order", OWNER),
+    ("GET", "/api/admin/settings", "get_settings", MANAGER),
+    ("PUT", "/api/admin/settings", "update_settings", MANAGER),
+    ("POST", "/api/admin/upload", "upload", STAFF),
+    ("POST", "/api/admin/password", "change_password", STAFF),
 ]
 
 
@@ -152,12 +177,15 @@ class Handler(BaseHTTPRequestHandler):
             ctx.params = params
             ctx.query = {k: v[0] for k, v in parse_qs(parsed.query).items()}
 
-            if scope == AUTH:
+            if scope != PUBLIC:
                 header = self.headers.get("Authorization") or ""
                 token = header[7:] if header.startswith("Bearer ") else ""
                 payload = security.verify_token(token)
-                if not payload or payload.get("role") != "admin":
-                    raise HttpError(401, "登录状态失效了，重新登录一下", "UNAUTHORIZED")
+                role = (payload or {}).get("role") or ""
+                if not payload or role not in ALLOWED.get(scope, set()):
+                    raise HttpError(401 if not payload else 403,
+                                    "登录状态失效了，重新登录一下" if not payload else "这个账号没有该操作权限",
+                                    "UNAUTHORIZED" if not payload else "FORBIDDEN")
                 ctx.user = payload
 
             if method in ("POST", "PUT", "PATCH"):
@@ -217,8 +245,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_file(target, public=True)
 
         rel = path.lstrip("/")
-        if rel in ("admin", "admin/"):
-            rel = "admin/index.html"
+        if rel in ("admin", "admin/", "manager", "manager/", "support", "support/", "staff", "staff/"):
+            rel = rel.rstrip("/") + "/index.html"
         candidate = (WEB_ROOT / rel).resolve()
         try:
             candidate.relative_to(WEB_ROOT)

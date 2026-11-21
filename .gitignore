@@ -6,6 +6,7 @@ __pycache__/
 *.pyc
 wunding-escort
 *.log
+.tmp/
 
 # 本机环境
 .env

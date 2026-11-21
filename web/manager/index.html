@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>管事端 · 无定电竞护航</title>
+  <link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body class="console-body">
+  <div class="login-mask" id="loginView">
+    <form class="login-card" id="loginForm">
+      <div class="login-brand">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div><strong>管事端</strong><span>排单、商品、人员 · 无定科技</span></div>
+      </div>
+      <div class="field"><label>账号</label><input id="loginUser" type="text" autocomplete="username" placeholder="管事账号" required /></div>
+      <div class="field"><label>密码</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="登录密码" required /></div>
+      <button class="btn btn-primary btn-block" type="submit" id="loginBtn">登 录</button>
+      <p class="hint" id="loginError" style="color:#ff6b81;min-height:16px"></p>
+      <p class="login-foot">客服 <a href="/support/">客服端</a> · 打手 <a href="/staff/">打手端</a> · 董事长 <a href="/admin/">董事长端</a></p>
+    </form>
+  </div>
+
+  <div id="appView" style="display:none">
+    <header class="console-top">
+      <div class="console-brand">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div><strong>管事端</strong><span data-user-name>--</span></div>
+      </div>
+      <div class="console-actions">
+        <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener">前台</a>
+        <button class="btn btn-ghost btn-sm" data-logout>退出</button>
+      </div>
+    </header>
+
+    <div class="console-shell">
+      <nav class="console-nav" id="consoleNav">
+        <button data-view="overview" class="active">经营概览</button>
+        <button data-view="orders">订单与派单</button>
+        <button data-view="products">商品价格</button>
+        <button data-view="staff">人员账号</button>
+        <button data-view="settings">站点文案</button>
+        <button data-view="logs">操作日志</button>
+      </nav>
+
+      <main class="console-main">
+        <section class="console-view active" data-view="overview">
+          <div class="console-cards" id="kpis"></div>
+          <div class="console-panel">
+            <div class="console-panel-head"><h3>近 7 天订单</h3><span class="sub">按下单时间统计</span></div>
+            <div class="chart" id="chart"></div>
+          </div>
+          <div class="console-panel">
+            <div class="console-panel-head"><h3>待派单</h3><span class="sub">已付款、还没派打手</span></div>
+            <div id="overviewQueue"></div>
+          </div>
+        </section>
+
+        <section class="console-view" data-view="orders">
+          <div class="console-panel">
+            <div class="console-panel-head">
+              <h3>订单与派单</h3>
+              <div class="console-filters">
+                <select id="oStatus">
+                  <option value="all">全部状态</option>
+                  <option value="pending">待接单</option>
+                  <option value="processing">护航中</option>
+                  <option value="done">已完成</option>
+                  <option value="cancelled">已取消</option>
+                </select>
+                <input id="oSearch" type="search" placeholder="订单号 / 客户 / 游戏 ID" />
+                <button class="btn btn-ghost btn-sm" id="oReload">刷新</button>
+              </div>
+            </div>
+            <div class="console-table-wrap">
+              <table class="console-table">
+                <thead><tr><th>订单</th><th>服务</th><th>客户</th><th>金额</th><th>付款</th><th>状态</th><th>打手</th><th>派单</th><th>操作</th></tr></thead>
+                <tbody id="oRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="console-view" data-view="products">
+          <div class="console-panel">
+            <div class="console-panel-head"><h3>商品与价格</h3><span class="sub">改价、上下架即时生效</span></div>
+            <div class="console-table-wrap">
+              <table class="console-table">
+                <thead><tr><th>商品</th><th>游戏</th><th>价格</th><th>库存</th><th>销量</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="pRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="console-view" data-view="staff">
+          <div class="console-panel">
+            <div class="console-panel-head"><h3>人员账号</h3><span class="sub">管事只能管理客服和打手</span></div>
+            <form class="inline-form" id="userForm">
+              <input id="uName" placeholder="姓名，如 小周" maxlength="30" required />
+              <input id="uUser" placeholder="登录账号（字母数字）" maxlength="20" required />
+              <input id="uPass" placeholder="初始密码，至少 6 位" maxlength="40" required />
+              <select id="uRole"><option value="support">客服</option><option value="booster">打手</option></select>
+              <input id="uShare" type="number" min="0" max="100" value="60" title="打手分成比例 %" style="width:90px" />
+              <button class="btn btn-primary btn-sm" type="submit">新增</button>
+            </form>
+            <div class="console-table-wrap">
+              <table class="console-table">
+                <thead><tr><th>姓名</th><th>账号</th><th>角色</th><th>分成</th><th>状态</th><th>最近登录</th><th>操作</th></tr></thead>
+                <tbody id="uRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="console-view" data-view="settings">
+          <div class="console-panel">
+            <div class="console-panel-head"><h3>站点文案</h3><span class="sub">支付参数只有董事长能改</span></div>
+            <form class="form-grid" id="settingsForm">
+              <div class="form-grid-2">
+                <div class="field"><label>站点名称</label><input id="s-siteName" maxlength="40" /></div>
+                <div class="field"><label>版权主体</label><input id="s-company" maxlength="40" /></div>
+              </div>
+              <div class="field"><label>平台公告</label><input id="s-notice" maxlength="200" /></div>
+              <div class="field"><label>下单提示</label><textarea id="s-orderTips" maxlength="300"></textarea></div>
+              <div class="form-grid-2">
+                <div class="field"><label>客服 QQ</label><input id="s-kefu-qq" maxlength="40" /></div>
+                <div class="field"><label>客服微信</label><input id="s-kefu-wechat" maxlength="40" /></div>
+              </div>
+              <button class="btn btn-primary" type="submit">保存文案</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="console-view" data-view="logs">
+          <div class="console-panel">
+            <div class="console-panel-head"><h3>操作日志</h3><span class="sub">最近 80 条</span></div>
+            <ul class="log-list" id="logList"></ul>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/station.js"></script>
+  <script src="/assets/js/manager.js"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>客服工作台 · 无定电竞护航</title>
+  <link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body class="console-body">
+  <div class="login-mask" id="loginView">
+    <form class="login-card" id="loginForm">
+      <div class="login-brand">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div><strong>客服工作台</strong><span>无定电竞护航 · 无定科技</span></div>
+      </div>
+      <div class="field"><label>账号</label><input id="loginUser" type="text" autocomplete="username" placeholder="客服账号" required /></div>
+      <div class="field"><label>密码</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="登录密码" required /></div>
+      <button class="btn btn-primary btn-block" type="submit" id="loginBtn">登 录</button>
+      <p class="hint" id="loginError" style="color:#ff6b81;min-height:16px"></p>
+      <p class="login-foot">打手请用 <a href="/staff/">打手端</a>，管事用 <a href="/manager/">管事端</a></p>
+    </form>
+  </div>
+
+  <div id="appView" style="display:none">
+    <header class="console-top">
+      <div class="console-brand">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div><strong>客服工作台</strong><span data-user-name>--</span></div>
+      </div>
+      <div class="console-actions">
+        <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener">前台</a>
+        <button class="btn btn-ghost btn-sm" data-logout>退出</button>
+      </div>
+    </header>
+
+    <main class="console-main">
+      <div class="console-cards" id="kpis"></div>
+
+      <section class="console-panel">
+        <div class="console-panel-head">
+          <h3>订单队列</h3>
+          <div class="console-filters">
+            <select id="filterStatus">
+              <option value="all">全部状态</option>
+              <option value="pending">待接单</option>
+              <option value="processing">护航中</option>
+              <option value="done">已完成</option>
+              <option value="cancelled">已取消</option>
+            </select>
+            <select id="filterPay">
+              <option value="all">全部付款</option>
+              <option value="unpaid">待付款</option>
+              <option value="review">待确认</option>
+              <option value="paid">已到账</option>
+            </select>
+            <input id="search" type="search" placeholder="订单号 / 客户 / 游戏 ID" />
+          </div>
+        </div>
+        <div class="console-table-wrap">
+          <table class="console-table">
+            <thead>
+              <tr><th>订单</th><th>服务</th><th>客户</th><th>金额</th><th>付款</th><th>状态</th><th>打手</th><th>操作</th></tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-mask" id="detailMask">
+    <div class="modal">
+      <h3>订单详情</h3>
+      <div id="detailBody"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="detailClose">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/station.js"></script>
+  <script src="/assets/js/support.js"></script>
+</body>
+</html>

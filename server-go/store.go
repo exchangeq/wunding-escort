@@ -109,7 +109,13 @@ func initStore() {
 			DisplayName:  "无定科技 · 运营",
 		},
 		Settings: seed.Settings,
-		Logs:     []Log{{ID: "log_" + randomHex(8), At: nowISO(), Action: "初始化数据"}},
+		Users: []User{{
+			ID: "usr_owner", Username: envOr("ADMIN_USER", "wunding"),
+			Name: "无定科技 · 董事长", Role: "owner", Share: 0, Status: "on",
+			PasswordHash: hashPassword(envOr("ADMIN_PASS", "wunding2026")),
+			CreatedAt:    nowISO(),
+		}},
+		Logs: []Log{{ID: "log_" + randomHex(8), At: nowISO(), Action: "初始化数据"}},
 	}
 	for i, p := range seed.Products {
 		product := p
@@ -153,6 +159,42 @@ func normalizeDB(db *DB) {
 	}
 	if db.Logs == nil {
 		db.Logs = []Log{}
+	}
+	if len(db.Users) == 0 {
+		user := User{
+			ID: "usr_owner", Username: firstNonEmpty(db.Admin.Username, "wunding"),
+			Name: firstNonEmpty(db.Admin.DisplayName, "无定科技 · 董事长"),
+			Role: "owner", Status: "on", PasswordHash: db.Admin.PasswordHash,
+			CreatedAt: nowISO(), LoginAt: db.Admin.LastLoginAt,
+		}
+		db.Users = []User{user}
+	}
+	for i := range db.Users {
+		u := &db.Users[i]
+		if u.ID == "" {
+			u.ID = "usr_" + randomHex(6)
+		}
+		if u.Role == "" {
+			u.Role = "booster"
+		}
+		if u.Name == "" {
+			u.Name = u.Username
+		}
+		if u.Status == "" {
+			u.Status = "on"
+		}
+		if u.Share < 0 {
+			u.Share = 0
+		}
+	}
+	for i := range db.Orders {
+		o := &db.Orders[i]
+		if o.PayStatus == "" {
+			o.PayStatus = "unpaid"
+		}
+		if o.Progress == nil {
+			o.Progress = []Progress{}
+		}
 	}
 	if db.Admin.Username == "" {
 		db.Admin.Username = "wunding"

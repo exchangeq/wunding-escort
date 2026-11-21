@@ -13,6 +13,8 @@ mkdir -p "$STAGE/server-py" "$STAGE/data"
 
 cp -R web termux server-py deploy docs "$STAGE/"
 cp seed.json README.md LICENSE VERSION start.sh start-go.sh "$STAGE/" 2>/dev/null || true
+mkdir -p "$STAGE/scripts"
+cp scripts/demo_seed.py "$STAGE/scripts/"
 rm -f "$STAGE/start-go.sh"
 
 find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true

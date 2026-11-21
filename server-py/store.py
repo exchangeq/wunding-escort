@@ -76,6 +76,21 @@ def _seed_products():
     return products
 
 
+def _owner_user():
+    return {
+        "id": "usr_owner",
+        "username": ADMIN_USER,
+        "name": "无定科技 · 董事长",
+        "role": "owner",
+        "phone": "",
+        "share": 0,
+        "status": "on",
+        "passwordHash": hash_password(ADMIN_PASS),
+        "createdAt": now_iso(),
+        "lastLoginAt": "",
+    }
+
+
 def default_db():
     return {
         "meta": {"version": 2, "brand": "无定科技", "createdAt": now_iso()},
@@ -86,6 +101,7 @@ def default_db():
             "lastLoginAt": None,
         },
         "settings": json.loads(json.dumps(DEFAULT_SETTINGS, ensure_ascii=False)),
+        "users": [_owner_user()],
         "products": _seed_products(),
         "orders": [],
         "logs": [{"id": uid("log_"), "at": now_iso(), "action": "初始化数据"}],
@@ -102,6 +118,36 @@ def _normalize(db):
         if isinstance(db["settings"].get("kefu"), dict):
             settings["kefu"] = dict(DEFAULT_SETTINGS["kefu"], **db["settings"]["kefu"])
     db["settings"] = settings
+    if not isinstance(db.get("users"), list) or not db["users"]:
+        admin = db.get("admin") if isinstance(db.get("admin"), dict) else {}
+        user = _owner_user()
+        if admin.get("username"):
+            user["username"] = str(admin["username"])
+            user["name"] = str(admin.get("displayName") or user["name"])
+            user["passwordHash"] = str(admin.get("passwordHash") or user["passwordHash"])
+            user["lastLoginAt"] = str(admin.get("lastLoginAt") or "")
+        db["users"] = [user]
+    for user in db["users"]:
+        user.setdefault("id", "usr_" + uid()[:8])
+        user.setdefault("role", "booster")
+        user.setdefault("name", user.get("username") or "")
+        user.setdefault("phone", "")
+        user.setdefault("share", 0)
+        user.setdefault("status", "on")
+        user.setdefault("createdAt", now_iso())
+        user.setdefault("lastLoginAt", "")
+    for order in db.get("orders", []):
+        order.setdefault("payStatus", "unpaid")
+        order.setdefault("payMethod", "")
+        order.setdefault("payAt", "")
+        order.setdefault("payTradeNo", "")
+        order.setdefault("payProof", "")
+        order.setdefault("payNote", "")
+        order.setdefault("assigneeId", "")
+        order.setdefault("assigneeName", "")
+        order.setdefault("assignedAt", "")
+        order.setdefault("supportNote", "")
+        order.setdefault("progress", [])
     if not isinstance(db.get("products"), list):
         db["products"] = _seed_products()
     if not isinstance(db.get("orders"), list):

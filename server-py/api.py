@@ -2,6 +2,7 @@
 
 import base64
 import binascii
+import json
 import hashlib
 import hmac
 from datetime import date, datetime, timedelta
@@ -185,6 +186,11 @@ def create_order(ctx):
         "payTradeNo": "",
         "payProof": "",
         "payNote": "",
+        "assigneeId": "",
+        "assigneeName": "",
+        "assignedAt": "",
+        "supportNote": "",
+        "progress": [],
         "createdAt": now_iso(),
         "updatedAt": now_iso(),
     }
@@ -235,6 +241,11 @@ def track_order(ctx):
         "payAt": order.get("payAt") or "",
         "payProof": order.get("payProof") or "",
         "payment": _payment_public(db["settings"]),
+        "assigneeName": order.get("assigneeName") or "",
+        "progress": [
+            {"at": p.get("at"), "byName": p.get("byName") or "", "text": p.get("text") or ""}
+            for p in (order.get("progress") or [])[-8:]
+        ],
         "createdAt": order.get("createdAt"),
         "updatedAt": order.get("updatedAt"),
         "kefu": db["settings"].get("kefu"),
@@ -455,6 +466,28 @@ def _note_login_fail(ip):
     record[0] += 1
 
 
+def _find_user(db, username):
+    name = str(username or "").strip()
+    return next((u for u in db.get("users", []) if str(u.get("username", "")).lower() == name.lower()), None)
+
+
+def _user_by_id(db, uid):
+    return next((u for u in db.get("users", []) if u.get("id") == uid), None)
+
+
+def _sanitize_user(user):
+    keys = ("id", "username", "name", "role", "phone", "share", "status", "createdAt", "lastLoginAt")
+    return {k: user.get(k) for k in keys}
+
+
+def _current(ctx):
+    db = store.load()
+    user = _user_by_id(db, (ctx.user or {}).get("uid"))
+    if not user or user.get("status") == "off":
+        raise HttpError(401, "账号已停用或不存在", "UNAUTHORIZED")
+    return db, user
+
+
 def login(ctx):
     _check_login_rate(ctx.ip)
     username = text(ctx.body.get("username"), 40)
@@ -463,9 +496,9 @@ def login(ctx):
         raise HttpError(400, "账号和密码都要填", "VALIDATION")
 
     db = store.load()
-    admin = db["admin"]
-    if username.lower() != str(admin.get("username", "")).lower() or not security.verify_password(
-        password, admin.get("passwordHash")
+    user = _find_user(db, username)
+    if not user or user.get("status") == "off" or not security.verify_password(
+        password, user.get("passwordHash")
     ):
         _note_login_fail(ctx.ip)
         raise HttpError(401, "账号或密码不对", "BAD_CREDENTIALS")
@@ -473,27 +506,41 @@ def login(ctx):
     _login_attempts.pop(ctx.ip, None)
 
     def mutate(db2):
-        db2["admin"]["lastLoginAt"] = now_iso()
-        store.add_log(db2, "管理员登录")
+        target = _find_user(db2, username)
+        target["lastLoginAt"] = now_iso()
+        if target.get("role") == "owner":
+            db2["admin"]["lastLoginAt"] = now_iso()
+        store.add_log(db2, "{} 登录".format(target.get("name") or target.get("username")))
 
     store.update(mutate)
+    public = _sanitize_user(_find_user(store.load(), username))
     ok(ctx.h, {
-        "token": security.sign({"u": admin.get("username"), "role": "admin"}),
+        "token": security.sign({
+            "u": public["username"], "role": public["role"],
+            "uid": public["id"], "name": public["name"],
+        }),
         "expiresIn": security.TOKEN_TTL,
-        "admin": {"username": admin.get("username"), "displayName": admin.get("displayName")},
+        "user": public,
+        "role": public["role"],
+        "admin": {"username": public["username"], "displayName": public["name"]},
     })
 
 
 def me(ctx):
-    db = store.load()
+    db, user = _current(ctx)
     s = db["settings"]
     ok(ctx.h, {
-        "username": db["admin"].get("username"),
-        "displayName": db["admin"].get("displayName"),
+        "id": user.get("id"),
+        "username": user.get("username"),
+        "name": user.get("name"),
+        "displayName": user.get("name"),
+        "role": user.get("role"),
+        "share": user.get("share") or 0,
+        "status": user.get("status"),
         "siteName": s.get("siteName"),
         "company": s.get("company"),
         "copyright": s.get("copyright"),
-        "lastLoginAt": db["admin"].get("lastLoginAt"),
+        "lastLoginAt": user.get("lastLoginAt"),
     })
 
 
@@ -528,6 +575,8 @@ def overview(ctx):
             "unpaid": sum(1 for o in orders if (o.get("payStatus") or "unpaid") == "unpaid"),
             "payReview": sum(1 for o in orders if o.get("payStatus") == "review"),
             "paid": sum(1 for o in orders if o.get("payStatus") == "paid"),
+            "unassigned": sum(1 for o in orders if not o.get("assigneeId") and o.get("status") != "cancelled"),
+            "boosters": sum(1 for u in db.get("users", []) if u.get("role") == "booster" and u.get("status") != "off"),
         },
         "series": series,
         "recentOrders": orders[:8],
@@ -645,16 +694,20 @@ def admin_orders(ctx):
 def update_order(ctx):
     oid = ctx.params["id"]
     status = text(ctx.body.get("status"), 20)
-    if status not in ORDER_STATUS:
+    if status and status not in ORDER_STATUS:
         raise HttpError(400, "订单状态不对", "VALIDATION")
+    support_note = ctx.body.get("supportNote")
     holder = {}
 
     def mutate(db):
         for o in db["orders"]:
             if o.get("id") == oid or o.get("orderNo") == oid:
-                o["status"] = status
+                if status:
+                    o["status"] = status
+                if isinstance(support_note, str):
+                    o["supportNote"] = text(support_note, 500)
                 o["updatedAt"] = now_iso()
-                store.add_log(db, "订单 {} → {}".format(o.get("orderNo"), status))
+                store.add_log(db, "订单 {} → {}".format(o.get("orderNo"), status or "更新备注"))
                 holder["o"] = o
                 return o
         return None
@@ -684,7 +737,14 @@ def delete_order(ctx):
 
 
 def get_settings(ctx):
-    ok(ctx.h, store.load()["settings"])
+    settings = json.loads(json.dumps(store.load()["settings"], ensure_ascii=False))
+    if _role(ctx) != "owner":
+        payment = settings.get("payment") or {}
+        epay = payment.get("epay") or {}
+        epay["key"] = ""
+        payment["epay"] = epay
+        settings["payment"] = payment
+    ok(ctx.h, settings)
 
 
 def update_settings(ctx):
@@ -705,7 +765,7 @@ def update_settings(ctx):
                 "phone": text(body["kefu"].get("phone"), 40),
                 "hours": text(body["kefu"].get("hours"), 60),
             }
-        if isinstance(body.get("payment"), dict):
+        if isinstance(body.get("payment"), dict) and _role(ctx) == "owner":
             pay = body["payment"]
             manual = pay.get("manual") if isinstance(pay.get("manual"), dict) else {}
             epay = pay.get("epay") if isinstance(pay.get("epay"), dict) else {}
@@ -754,12 +814,384 @@ def change_password(ctx):
     if len(new) < 6:
         raise HttpError(400, "新密码至少 6 位", "VALIDATION")
     db = store.load()
-    if not security.verify_password(old, db["admin"].get("passwordHash")):
+    user = _user_by_id(db, (ctx.user or {}).get("uid"))
+    if not user or not security.verify_password(old, user.get("passwordHash")):
         raise HttpError(401, "原密码不对", "BAD_CREDENTIALS")
 
     def mutate(db2):
-        db2["admin"]["passwordHash"] = security.hash_password(new)
-        store.add_log(db2, "管理员改密码")
+        target = _user_by_id(db2, user["id"])
+        target["passwordHash"] = security.hash_password(new)
+        if target.get("role") == "owner":
+            db2["admin"]["passwordHash"] = target["passwordHash"]
+        store.add_log(db2, "{} 修改密码".format(target.get("name") or target.get("username")))
 
     store.update(mutate)
     ok(ctx.h, {"changed": True})
+
+
+# ---------------------------------------------------------------- 多角色与工作台
+
+import re
+
+ROLE_NAMES = {"owner": "董事长", "manager": "管事", "support": "客服", "booster": "打手"}
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{3,20}$")
+
+
+def _role(ctx):
+    return (ctx.user or {}).get("role") or ""
+
+
+def _staff_view(order, mask=False):
+    keys = (
+        "id", "orderNo", "productTitle", "game", "category", "qty", "amount",
+        "status", "payStatus", "payMethod", "payAt", "contactName", "contactPhone",
+        "gameAccount", "server", "note", "supportNote", "assigneeId", "assigneeName",
+        "assignedAt", "createdAt", "updatedAt", "progress",
+    )
+    out = {k: order.get(k) for k in keys}
+    if mask:
+        out["contactPhone"] = mask_phone(order.get("contactPhone"))
+    return out
+
+
+def staff_orders(ctx):
+    db, user = _current(ctx)
+    role = user.get("role")
+    scope = (ctx.query.get("scope") or "mine").strip()
+    status = (ctx.query.get("status") or "all").strip()
+    q = (ctx.query.get("q") or "").strip().lower()
+
+    items = list(db["orders"])
+    if role == "booster":
+        if scope == "pool":
+            items = [o for o in items if not o.get("assigneeId") and o.get("status") == "pending"
+                     and (o.get("payStatus") or "unpaid") == "paid"]
+        else:
+            items = [o for o in items if o.get("assigneeId") == user.get("id")]
+    if status != "all":
+        items = [o for o in items if o.get("status") == status]
+    if q:
+        def hay(o):
+            return " ".join(str(o.get(k) or "") for k in (
+                "orderNo", "productTitle", "gameAccount", "contactName", "assigneeName"
+            )).lower()
+        items = [o for o in items if q in hay(o)]
+
+    ok(ctx.h, {
+        "total": len(items),
+        "items": [_staff_view(o, mask=(role == "booster")) for o in items],
+        "role": role,
+    })
+
+
+def _staff_order_or_403(db, ctx, oid):
+    for o in db["orders"]:
+        if o.get("id") == oid or o.get("orderNo") == oid:
+            if _role(ctx) == "booster" and o.get("assigneeId") != (ctx.user or {}).get("uid"):
+                raise HttpError(403, "这单不是派给你的", "FORBIDDEN")
+            return o
+    raise HttpError(404, "订单不存在", "ORDER_NOT_FOUND")
+
+
+def staff_order_detail(ctx):
+    db, user = _current(ctx)
+    order = _staff_order_or_403(db, ctx, ctx.params["id"])
+    ok(ctx.h, _staff_view(order, mask=(user.get("role") == "booster")))
+
+
+def staff_claim(ctx):
+    db, user = _current(ctx)
+    if user.get("role") != "booster":
+        raise HttpError(403, "只有打手可以接单池里的单", "FORBIDDEN")
+    oid = ctx.params["id"]
+    holder = {}
+
+    def mutate(db2):
+        for o in db2["orders"]:
+            if o.get("id") != oid and o.get("orderNo") != oid:
+                continue
+            if o.get("assigneeId") and o.get("assigneeId") != user.get("id"):
+                raise HttpError(400, "这单已经被别人接了", "TAKEN")
+            if o.get("status") != "pending":
+                raise HttpError(400, "这单已经在进行或结束了", "BAD_STATUS")
+            if (o.get("payStatus") or "unpaid") != "paid":
+                raise HttpError(400, "客户还没付款，先别接", "NOT_PAID")
+            o["assigneeId"] = user.get("id")
+            o["assigneeName"] = user.get("name")
+            o["assignedAt"] = now_iso()
+            o["status"] = "processing"
+            o["updatedAt"] = now_iso()
+            store.add_log(db2, "{} 接了订单 {}".format(user.get("name"), o.get("orderNo")))
+            holder["o"] = o
+            return o
+        raise HttpError(404, "订单不存在", "ORDER_NOT_FOUND")
+
+    store.update(mutate)
+    ok(ctx.h, _staff_view(holder["o"], mask=True))
+
+
+def staff_progress(ctx):
+    db, user = _current(ctx)
+    oid = ctx.params["id"]
+    text_value = text(ctx.body.get("text"), 200)
+    if not text_value:
+        raise HttpError(400, "写一句进度说明", "VALIDATION")
+    image = ""
+    if ctx.body.get("image"):
+        image, _ = _save_image(ctx.body.get("image"), limit=3 * 1024 * 1024, name_hint="progress_")
+    holder = {}
+
+    def mutate(db2):
+        order = None
+        for o in db2["orders"]:
+            if o.get("id") == oid or o.get("orderNo") == oid:
+                order = o
+                break
+        if not order:
+            raise HttpError(404, "订单不存在", "ORDER_NOT_FOUND")
+        role = user.get("role")
+        if role == "booster" and order.get("assigneeId") != user.get("id"):
+            raise HttpError(403, "这单不是派给你的", "FORBIDDEN")
+        if role not in ("owner", "manager", "support", "booster"):
+            raise HttpError(403, "没有权限", "FORBIDDEN")
+        entry = {
+            "at": now_iso(), "by": user.get("id"), "byName": user.get("name"),
+            "text": text_value, "image": image,
+        }
+        order.setdefault("progress", []).append(entry)
+        order["progress"] = order["progress"][-30:]
+        if role == "booster" and order.get("status") == "pending":
+            order["status"] = "processing"
+        order["updatedAt"] = now_iso()
+        store.add_log(db2, "{} 更新订单 {} 进度".format(user.get("name"), order.get("orderNo")))
+        holder["o"] = order
+        return order
+
+    store.update(mutate)
+    ok(ctx.h, _staff_view(holder["o"], mask=(user.get("role") == "booster")), 201)
+
+
+def staff_status(ctx):
+    db, user = _current(ctx)
+    status = text(ctx.body.get("status"), 20)
+    if status not in ("processing", "done"):
+        raise HttpError(400, "只能改成进行中或已完成", "VALIDATION")
+    oid = ctx.params["id"]
+    holder = {}
+
+    def mutate(db2):
+        order = _staff_order_or_403(db2, ctx, oid)
+        if user.get("role") == "booster" and order.get("assigneeId") != user.get("id"):
+            raise HttpError(403, "这单不是派给你的", "FORBIDDEN")
+        order["status"] = status
+        order["updatedAt"] = now_iso()
+        store.add_log(db2, "{} 把订单 {} 标记为 {}".format(user.get("name"), order.get("orderNo"), status))
+        holder["o"] = order
+        return order
+
+    store.update(mutate)
+    ok(ctx.h, _staff_view(holder["o"], mask=(user.get("role") == "booster")))
+
+
+def staff_summary(ctx):
+    db, user = _current(ctx)
+    role = user.get("role")
+    orders = db["orders"]
+    month = date.today().isoformat()[:7]
+
+    if role == "booster":
+        mine = [o for o in orders if o.get("assigneeId") == user.get("id")]
+        done = [o for o in mine if o.get("status") == "done"]
+        month_done = [o for o in done if str(o.get("updatedAt"))[:7] == month]
+        share = int(user.get("share") or 0)
+        amount = round(sum(float(o.get("amount") or 0) for o in month_done), 2)
+        ok(ctx.h, {
+            "role": role,
+            "assigned": len(mine),
+            "processing": sum(1 for o in mine if o.get("status") == "processing"),
+            "done": len(done),
+            "monthDone": len(month_done),
+            "monthAmount": amount,
+            "share": share,
+            "estimate": round(amount * share / 100.0, 2),
+            "pool": sum(1 for o in orders if not o.get("assigneeId") and o.get("status") == "pending"
+                        and (o.get("payStatus") or "unpaid") == "paid"),
+        })
+        return
+
+    today = date.today().isoformat()
+    ok(ctx.h, {
+        "role": role,
+        "total": len(orders),
+        "pending": sum(1 for o in orders if o.get("status") == "pending"),
+        "processing": sum(1 for o in orders if o.get("status") == "processing"),
+        "doneToday": sum(1 for o in orders if o.get("status") == "done" and str(o.get("updatedAt"))[:10] == today),
+        "unpaid": sum(1 for o in orders if (o.get("payStatus") or "unpaid") == "unpaid"),
+        "review": sum(1 for o in orders if o.get("payStatus") == "review"),
+        "unassigned": sum(1 for o in orders if not o.get("assigneeId") and o.get("status") != "cancelled"),
+        "boosters": sum(1 for u in db["users"] if u.get("role") == "booster" and u.get("status") != "off"),
+    })
+
+
+def admin_users(ctx):
+    db, user = _current(ctx)
+    role = user.get("role")
+    items = list(db["users"])
+    if role == "manager":
+        items = [u for u in items if u.get("role") in ("support", "booster")]
+    items.sort(key=lambda u: ({"owner": 0, "manager": 1, "support": 2, "booster": 3}.get(u.get("role"), 9), u.get("createdAt") or ""))
+    ok(ctx.h, {"total": len(items), "items": [_sanitize_user(u) for u in items]})
+
+
+def _check_manage_user(actor, target_role, new_role=None):
+    if actor.get("role") == "owner":
+        return
+    if target_role not in ("support", "booster") or (new_role and new_role not in ("support", "booster")):
+        raise HttpError(403, "管事只能管理客服和打手账号", "FORBIDDEN")
+
+
+def create_user(ctx):
+    db, actor = _current(ctx)
+    body = ctx.body
+    username = text(body.get("username"), 20)
+    if not USERNAME_RE.match(username):
+        raise HttpError(400, "账号只能是 3-20 位字母、数字或下划线", "VALIDATION")
+    role = text(body.get("role"), 10)
+    if role not in ROLE_NAMES:
+        raise HttpError(400, "角色不对", "VALIDATION")
+    _check_manage_user(actor, role)
+    if role == "owner":
+        raise HttpError(400, "董事长账号只能有一个，别新建", "VALIDATION")
+    password = str(body.get("password") or "")
+    if len(password) < 6:
+        raise HttpError(400, "密码至少 6 位", "VALIDATION")
+    if _find_user(db, username):
+        raise HttpError(400, "这个账号名已经有人用了", "USERNAME_TAKEN")
+
+    payload = {
+        "id": "usr_" + uid()[:8],
+        "username": username,
+        "name": text(body.get("name"), 30) or username,
+        "role": role,
+        "phone": text(body.get("phone"), 30),
+        "share": int(number(body.get("share"), 60 if role == "booster" else 0, 0, 100)),
+        "status": "on" if body.get("status") != "off" else "off",
+        "passwordHash": security.hash_password(password),
+        "createdAt": now_iso(),
+        "lastLoginAt": "",
+    }
+    holder = {}
+
+    def mutate(db2):
+        db2["users"].append(payload)
+        store.add_log(db2, "{} 新建{}账号 {}".format(actor.get("name"), ROLE_NAMES[role], username))
+        holder["u"] = payload
+        return payload
+
+    store.update(mutate)
+    ok(ctx.h, _sanitize_user(holder["u"]), 201)
+
+
+def update_user(ctx):
+    db, actor = _current(ctx)
+    target = _user_by_id(db, ctx.params["id"])
+    if not target:
+        raise HttpError(404, "账号不存在", "USER_NOT_FOUND")
+    new_role = text(ctx.body.get("role"), 10) or target.get("role")
+    _check_manage_user(actor, target.get("role"), new_role)
+    if target.get("role") == "owner" and actor.get("role") != "owner":
+        raise HttpError(403, "董事长账号不能动", "FORBIDDEN")
+    if new_role not in ROLE_NAMES:
+        raise HttpError(400, "角色不对", "VALIDATION")
+    if target.get("role") == "owner" and new_role != "owner":
+        raise HttpError(400, "不能把董事长改成别的角色", "VALIDATION")
+
+    def mutate(db2):
+        user = _user_by_id(db2, target["id"])
+        if "name" in ctx.body:
+            user["name"] = text(ctx.body.get("name"), 30) or user.get("username")
+        if "phone" in ctx.body:
+            user["phone"] = text(ctx.body.get("phone"), 30)
+        if "role" in ctx.body:
+            user["role"] = new_role
+        if "share" in ctx.body:
+            user["share"] = int(number(ctx.body.get("share"), user.get("share") or 0, 0, 100))
+        if "status" in ctx.body:
+            if user.get("role") == "owner" and ctx.body.get("status") == "off":
+                raise HttpError(400, "不能停用董事长账号", "VALIDATION")
+            user["status"] = "on" if ctx.body.get("status") != "off" else "off"
+        password = str(ctx.body.get("password") or "")
+        if password:
+            if len(password) < 6:
+                raise HttpError(400, "新密码至少 6 位", "VALIDATION")
+            user["passwordHash"] = security.hash_password(password)
+        store.add_log(db2, "{} 更新账号 {}".format(actor.get("name"), user.get("username")))
+        return _sanitize_user(user)
+
+    result = store.update(mutate)
+    ok(ctx.h, result)
+
+
+def delete_user(ctx):
+    db, actor = _current(ctx)
+    target = _user_by_id(db, ctx.params["id"])
+    if not target:
+        raise HttpError(404, "账号不存在", "USER_NOT_FOUND")
+    if target.get("id") == actor.get("id"):
+        raise HttpError(400, "不能删自己", "VALIDATION")
+    if target.get("role") == "owner":
+        raise HttpError(400, "董事长账号不能删", "VALIDATION")
+    holder = {}
+
+    def mutate(db2):
+        for index, u in enumerate(db2["users"]):
+            if u.get("id") == target["id"]:
+                holder["u"] = db2["users"].pop(index)
+                break
+        for o in db2["orders"]:
+            if o.get("assigneeId") == target["id"] and o.get("status") != "done":
+                o["assigneeId"] = ""
+                o["assigneeName"] = ""
+        store.add_log(db2, "删除账号 {}".format(target.get("username")))
+
+    store.update(mutate)
+    ok(ctx.h, {"id": target["id"]})
+
+
+def admin_logs(ctx):
+    db, user = _current(ctx)
+    ok(ctx.h, {"items": db.get("logs", [])[:80]})
+
+
+def assign_order(ctx):
+    db, actor = _current(ctx)
+    oid = ctx.params["id"]
+    uid_value = text(ctx.body.get("userId"), 40)
+    target = _user_by_id(db, uid_value) if uid_value else None
+    if uid_value and (not target or target.get("role") != "booster" or target.get("status") == "off"):
+        raise HttpError(400, "只能派给在岗的打手", "VALIDATION")
+    holder = {}
+
+    def mutate(db2):
+        for o in db2["orders"]:
+            if o.get("id") != oid and o.get("orderNo") != oid:
+                continue
+            if target:
+                o["assigneeId"] = target["id"]
+                o["assigneeName"] = target["name"]
+                o["assignedAt"] = now_iso()
+                if o.get("status") == "pending" and (o.get("payStatus") or "unpaid") == "paid":
+                    o["status"] = "processing"
+            else:
+                o["assigneeId"] = ""
+                o["assigneeName"] = ""
+                o["assignedAt"] = ""
+            o["updatedAt"] = now_iso()
+            store.add_log(db2, "{} 派单 {} → {}".format(
+                actor.get("name"), o.get("orderNo"), target.get("name") if target else "未分配"))
+            holder["o"] = o
+            return o
+        raise HttpError(404, "订单不存在", "ORDER_NOT_FOUND")
+
+    store.update(mutate)
+    ok(ctx.h, holder["o"])

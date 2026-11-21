@@ -32,6 +32,13 @@
     document.getElementById('rContact').textContent = order.contactName + '（' + order.contactPhone + '）';
     document.getElementById('rCreated').textContent = UI.date(order.createdAt);
     document.getElementById('rNote').textContent = order.note || '无';
+    document.getElementById('rAssignee').textContent = order.assigneeName || '待安排';
+    var items = order.progress || [];
+    var box = document.getElementById('rProgressBox');
+    box.style.display = items.length ? 'block' : 'none';
+    document.getElementById('rProgress').innerHTML = items.map(function (p) {
+      return '<li><b>' + UI.date(p.at) + ' · ' + UI.escape(p.byName || '护航') + '</b><span>' + UI.escape(p.text) + '</span></li>';
+    }).join('');
     paintTimeline(order.status);
     if (window.PAYUI) PAYUI.render(document.getElementById('payBox'), order, order.payment);
     if (order.status === 'cancelled') {

@@ -11,7 +11,15 @@ cd wunding-escort
 bash termux/run.sh
 ```
 
-不需要 `pip install`，后端只用了标准库。
+不需要 `pip install`，后端只用了标准库。启动后四个入口分别是：
+
+- 前台 `/`
+- 董事长端 `/admin/`
+- 管事端 `/manager/`
+- 客服端 `/support/`
+- 打手端 `/staff/`（手机浏览器打开最顺手，可加到桌面）
+
+默认账号只有董事长 `wunding` / `wunding2026`，进去后在「团队账号」建其余角色。
 
 ## 后台跑
 

@@ -86,32 +86,58 @@ type Product struct {
 	UpdatedAt string   `json:"updatedAt"`
 }
 
+type User struct {
+	ID           string `json:"id"`
+	Username     string `json:"username"`
+	Name         string `json:"name"`
+	Role         string `json:"role"`
+	Phone        string `json:"phone"`
+	Share        int    `json:"share"`
+	Status       string `json:"status"`
+	PasswordHash string `json:"passwordHash"`
+	CreatedAt    string `json:"createdAt"`
+	LoginAt      string `json:"lastLoginAt"`
+}
+
+type Progress struct {
+	At     string `json:"at"`
+	By     string `json:"by"`
+	ByName string `json:"byName"`
+	Text   string `json:"text"`
+	Image  string `json:"image"`
+}
+
 type Order struct {
-	ID           string  `json:"id"`
-	OrderNo      string  `json:"orderNo"`
-	ProductID    int     `json:"productId"`
-	ProductTitle string  `json:"productTitle"`
-	Game         string  `json:"game"`
-	Category     string  `json:"category"`
-	Cover        string  `json:"cover"`
-	Price        float64 `json:"price"`
-	Unit         string  `json:"unit"`
-	Qty          int     `json:"qty"`
-	Amount       float64 `json:"amount"`
-	ContactName  string  `json:"contactName"`
-	ContactPhone string  `json:"contactPhone"`
-	GameAccount  string  `json:"gameAccount"`
-	Server       string  `json:"server"`
-	Note         string  `json:"note"`
-	Status       string  `json:"status"`
-	PayStatus    string  `json:"payStatus"`
-	PayMethod    string  `json:"payMethod"`
-	PayAt        string  `json:"payAt"`
-	PayTradeNo   string  `json:"payTradeNo"`
-	PayProof     string  `json:"payProof"`
-	PayNote      string  `json:"payNote"`
-	CreatedAt    string  `json:"createdAt"`
-	UpdatedAt    string  `json:"updatedAt"`
+	ID           string     `json:"id"`
+	OrderNo      string     `json:"orderNo"`
+	ProductID    int        `json:"productId"`
+	ProductTitle string     `json:"productTitle"`
+	Game         string     `json:"game"`
+	Category     string     `json:"category"`
+	Cover        string     `json:"cover"`
+	Price        float64    `json:"price"`
+	Unit         string     `json:"unit"`
+	Qty          int        `json:"qty"`
+	Amount       float64    `json:"amount"`
+	ContactName  string     `json:"contactName"`
+	ContactPhone string     `json:"contactPhone"`
+	GameAccount  string     `json:"gameAccount"`
+	Server       string     `json:"server"`
+	Note         string     `json:"note"`
+	Status       string     `json:"status"`
+	PayStatus    string     `json:"payStatus"`
+	PayMethod    string     `json:"payMethod"`
+	PayAt        string     `json:"payAt"`
+	PayTradeNo   string     `json:"payTradeNo"`
+	PayProof     string     `json:"payProof"`
+	PayNote      string     `json:"payNote"`
+	AssigneeID   string     `json:"assigneeId"`
+	AssigneeName string     `json:"assigneeName"`
+	AssignedAt   string     `json:"assignedAt"`
+	SupportNote  string     `json:"supportNote"`
+	Progress     []Progress `json:"progress"`
+	CreatedAt    string     `json:"createdAt"`
+	UpdatedAt    string     `json:"updatedAt"`
 }
 
 type Log struct {
@@ -124,6 +150,7 @@ type DB struct {
 	Meta     Meta      `json:"meta"`
 	Admin    Admin     `json:"admin"`
 	Settings Settings  `json:"settings"`
+	Users    []User    `json:"users"`
 	Products []Product `json:"products"`
 	Orders   []Order   `json:"orders"`
 	Logs     []Log     `json:"logs"`

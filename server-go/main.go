@@ -16,37 +16,59 @@ import (
 type route struct {
 	method  string
 	pattern string
-	auth    bool
+	scope   string
 	handler func(*ctx, map[string]any) error
 }
 
+var allowedRoles = map[string]map[string]bool{
+	"staff":   {"owner": true, "manager": true, "support": true, "booster": true},
+	"support": {"owner": true, "manager": true, "support": true},
+	"manager": {"owner": true, "manager": true},
+	"owner":   {"owner": true},
+}
+
 var routes = []route{
-	{"GET", "/api/health", false, handleHealth},
-	{"GET", "/api/site", false, handleSite},
-	{"GET", "/api/products", false, handleProducts},
-	{"GET", "/api/products/{id}", false, handleProductDetail},
-	{"POST", "/api/orders", false, handleCreateOrder},
-	{"GET", "/api/orders/{orderNo}", false, handleTrackOrder},
-	{"POST", "/api/orders/{orderNo}/proof", false, handleSubmitProof},
-	{"POST", "/api/orders/{orderNo}/pay", false, handlePayCreate},
-	{"GET", "/api/pay/notify", false, handleEpayNotify},
-	{"POST", "/api/pay/notify", false, handleEpayNotify},
-	{"GET", "/api/pay/return", false, handleEpayReturn},
-	{"POST", "/api/admin/login", false, handleLogin},
-	{"GET", "/api/admin/me", true, handleMe},
-	{"GET", "/api/admin/overview", true, handleOverview},
-	{"GET", "/api/admin/products", true, handleAdminProducts},
-	{"POST", "/api/admin/products", true, handleCreateProduct},
-	{"PUT", "/api/admin/products/{id}", true, handleUpdateProduct},
-	{"DELETE", "/api/admin/products/{id}", true, handleDeleteProduct},
-	{"GET", "/api/admin/orders", true, handleAdminOrders},
-	{"PUT", "/api/admin/orders/{id}", true, handleUpdateOrder},
-	{"PUT", "/api/admin/orders/{id}/payment", true, handleAdminOrderPayment},
-	{"DELETE", "/api/admin/orders/{id}", true, handleDeleteOrder},
-	{"GET", "/api/admin/settings", true, handleGetSettings},
-	{"PUT", "/api/admin/settings", true, handleUpdateSettings},
-	{"POST", "/api/admin/upload", true, handleUpload},
-	{"POST", "/api/admin/password", true, handleChangePassword},
+	{"GET", "/api/health", "public", handleHealth},
+	{"GET", "/api/site", "public", handleSite},
+	{"GET", "/api/products", "public", handleProducts},
+	{"GET", "/api/products/{id}", "public", handleProductDetail},
+	{"POST", "/api/orders", "public", handleCreateOrder},
+	{"GET", "/api/orders/{orderNo}", "public", handleTrackOrder},
+	{"POST", "/api/orders/{orderNo}/proof", "public", handleSubmitProof},
+	{"POST", "/api/orders/{orderNo}/pay", "public", handlePayCreate},
+	{"GET", "/api/pay/notify", "public", handleEpayNotify},
+	{"POST", "/api/pay/notify", "public", handleEpayNotify},
+	{"GET", "/api/pay/return", "public", handleEpayReturn},
+	{"POST", "/api/admin/login", "public", handleLogin},
+	{"POST", "/api/auth/login", "public", handleLogin},
+	{"GET", "/api/admin/me", "staff", handleMe},
+	{"GET", "/api/auth/me", "staff", handleMe},
+	{"POST", "/api/auth/password", "staff", handleChangePassword},
+	{"POST", "/api/admin/password", "staff", handleChangePassword},
+	{"GET", "/api/staff/orders", "staff", handleStaffOrders},
+	{"GET", "/api/staff/orders/{id}", "staff", handleStaffOrderDetail},
+	{"POST", "/api/staff/orders/{id}/claim", "staff", handleStaffClaim},
+	{"POST", "/api/staff/orders/{id}/progress", "staff", handleStaffProgress},
+	{"POST", "/api/staff/orders/{id}/status", "staff", handleStaffStatus},
+	{"GET", "/api/staff/summary", "staff", handleStaffSummary},
+	{"GET", "/api/admin/users", "manager", handleAdminUsers},
+	{"POST", "/api/admin/users", "manager", handleCreateUser},
+	{"PUT", "/api/admin/users/{id}", "manager", handleUpdateUser},
+	{"DELETE", "/api/admin/users/{id}", "owner", handleDeleteUser},
+	{"GET", "/api/admin/logs", "manager", handleAdminLogs},
+	{"PUT", "/api/admin/orders/{id}/assign", "manager", handleAssignOrder},
+	{"GET", "/api/admin/overview", "support", handleOverview},
+	{"GET", "/api/admin/products", "manager", handleAdminProducts},
+	{"POST", "/api/admin/products", "manager", handleCreateProduct},
+	{"PUT", "/api/admin/products/{id}", "manager", handleUpdateProduct},
+	{"DELETE", "/api/admin/products/{id}", "owner", handleDeleteProduct},
+	{"GET", "/api/admin/orders", "support", handleAdminOrders},
+	{"PUT", "/api/admin/orders/{id}", "support", handleUpdateOrder},
+	{"PUT", "/api/admin/orders/{id}/payment", "support", handleAdminOrderPayment},
+	{"DELETE", "/api/admin/orders/{id}", "owner", handleDeleteOrder},
+	{"GET", "/api/admin/settings", "manager", handleGetSettings},
+	{"PUT", "/api/admin/settings", "manager", handleUpdateSettings},
+	{"POST", "/api/admin/upload", "staff", handleUpload},
 }
 
 var webRoot = func() string {
@@ -120,12 +142,17 @@ func dispatch(w http.ResponseWriter, r *http.Request) {
 
 	c := &ctx{w: w, r: r, params: params, query: r.URL.Query(), ip: clientIP(r)}
 
-	if matched.auth {
+	if matched.scope != "public" {
 		header := r.Header.Get("Authorization")
 		token := strings.TrimPrefix(header, "Bearer ")
 		payload := verifyToken(token)
-		if payload == nil || payload["role"] != "admin" {
-			failMsg(w, 401, "登录状态失效了，重新登录一下", "UNAUTHORIZED")
+		role, _ := payload["role"].(string)
+		if payload == nil || !allowedRoles[matched.scope][role] {
+			if payload == nil {
+				failMsg(w, 401, "登录状态失效了，重新登录一下", "UNAUTHORIZED")
+			} else {
+				failMsg(w, 403, "这个账号没有该操作权限", "FORBIDDEN")
+			}
 			return
 		}
 		c.user = payload
@@ -174,8 +201,9 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rel := strings.TrimPrefix(path, "/")
-	if rel == "admin" || rel == "admin/" {
-		rel = "admin/index.html"
+	switch strings.TrimSuffix(rel, "/") {
+	case "admin", "manager", "support", "staff":
+		rel = strings.TrimSuffix(rel, "/") + "/index.html"
 	}
 	target := filepath.Join(webRoot, filepath.FromSlash(filepath.Clean(rel)))
 	if target != webRoot && !strings.HasPrefix(target, webRoot+string(os.PathSeparator)) {

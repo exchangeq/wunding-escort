@@ -3,7 +3,10 @@
 工作室自己在用的护航下单系统。前台是接单页，后台改价格、上架项目、看订单，不用装数据库，一个 JSON 文件就够了。
 
 - 前台：项目列表、筛选、详情、下单、付款（收款码 / 在线支付）、订单进度查询
-- 后台：登录、数据总览、商品增删改、封面图上传、订单接单/完成/取消、确认到账/退款、收款设置、站点文案
+- 董事长端：数据总览、商品、订单、全部账号与权限、站点与支付设置、操作日志
+- 管事端：派单、改价上下架、建客服/打手账号、站点文案、日志
+- 客服端：订单接待、确认到账、跟进进度、内部备注
+- 打手端：接单池、我的任务、提交进度和配图、开始/完成
 - 两套后端：Python（Termux / 小机器）和 Go（独立服务器），接口一致，数据文件通用
 - 版权：© 无定科技
 
@@ -21,6 +24,14 @@
 | --- | --- |
 | ![](preview/05-付款.png) | ![](preview/06-收款设置.png) |
 
+| 客服工作台 | 管事端派单 |
+| --- | --- |
+| ![](preview/roles/01.png) | ![](preview/roles/05-manager-orders.png) |
+
+| 打手端（手机） | 董事长端团队账号 |
+| --- | --- |
+| ![](preview/roles/04-mobile.png) | ![](preview/roles/07-owner-team.png) |
+
 ## 两种部署方式
 
 | | Python 版 | Go 版 |
@@ -30,7 +41,7 @@
 | 启动 | `python3 server-py/app.py` | `./wunding-escort` |
 | 并发 | 一般，够小店用 | 好一些 |
 
-两边读写同一个 `data/db.json`，字段、密码哈希、登录令牌都一致，换后端不用重新录数据，管理员密码也是同一个。
+两边读写同一个 `data/db.json`，字段、密码哈希、登录令牌都一致，换后端不用重新录数据。四个角色的账号也存在这个文件里，改后端不影响登录。
 
 ## 目录
 
@@ -91,8 +102,8 @@ Termux 几个要注意的地方：
 bash start-go.sh
 
 # 或者直接下 Release 里的 linux-amd64 / arm64 包
-unzip wunding-escort-go-2.0.0-linux-amd64.zip
-cd wunding-escort-go-2.0.0-linux-amd64
+unzip wunding-escort-go-2.2.0-linux-amd64.zip
+cd wunding-escort-go-2.2.0-linux-amd64
 SESSION_SECRET='换成一串随机字符' ./run.sh
 ```
 
@@ -101,14 +112,24 @@ systemd 示例在 `deploy/`，Nginx 反代也在里面。
 ## 独立服务器（Python）
 
 ```bash
-unzip wunding-escort-python-2.0.0.zip
-cd wunding-escort-python-2.0.0
+unzip wunding-escort-python-2.2.0.zip
+cd wunding-escort-python-2.2.0
 SESSION_SECRET='换成一串随机字符' PORT=8080 ./run.sh
 ```
 
-## 后台
+## 四个入口
 
-地址 `/admin/`，默认账号 `wunding` / `wunding2026`。第一次进去先改密码，位置在「账号安全」。
+| 入口 | 谁用 | 地址 |
+| --- | --- | --- |
+| 前台 | 客户 | `/` |
+| 董事长端 | 老板 / 站长 | `/admin/` |
+| 管事端 | 排单、商品、人员 | `/manager/` |
+| 客服端 | 接待、确认到账 | `/support/` |
+| 打手端 | 接单、报进度 | `/staff/` |
+
+默认只有董事长账号 `wunding` / `wunding2026`，第一次进去先改密码（「账号安全」），再到「团队账号」建客服、打手、管事。管事能建客服和打手，但建不了管事；支付密钥只有董事长能看能改。
+
+分工、权限表和订单流转见 [docs/ROLES.md](docs/ROLES.md)。
 
 环境变量：
 
@@ -133,22 +154,34 @@ SESSION_SECRET='换成一串随机字符' PORT=8080 ./run.sh
 | POST | `/api/orders/{orderNo}/pay` | 生成在线支付链接 |
 | GET/POST | `/api/pay/notify` | 易支付异步通知，验签后记账 |
 | GET | `/api/pay/return` | 支付完成跳回订单页 |
-| POST | `/api/admin/login` | 登录，返回 12 小时令牌 |
+| POST | `/api/auth/login` | 四端统一登录，返回 12 小时令牌与角色 |
+| GET | `/api/auth/me` | 当前登录人 |
+| POST | `/api/auth/password` | 改自己的密码 |
 | GET | `/api/admin/overview` | 总览数据 |
-| GET/POST | `/api/admin/products` | 商品列表 / 新增 |
+| GET/POST | `/api/admin/products` | 商品列表 / 新增（管事可写，删除仅董事长） |
 | PUT/DELETE | `/api/admin/products/{id}` | 改 / 删 |
-| GET | `/api/admin/orders` | 订单列表 |
-| PUT/DELETE | `/api/admin/orders/{id}` | 改状态 / 删 |
-| GET/PUT | `/api/admin/settings` | 站点设置 |
-| POST | `/api/admin/upload` | 上传封面（base64） |
-| POST | `/api/admin/password` | 改密码 |
+| GET | `/api/admin/orders` | 订单列表（董事长、管事、客服） |
+| PUT/DELETE | `/api/admin/orders/{id}` | 改状态 / 删（删除仅董事长） |
+| PUT | `/api/admin/orders/{id}/payment` | 确认到账 / 退款 |
+| PUT | `/api/admin/orders/{id}/assign` | 派单 / 取消派单 |
+| GET/POST | `/api/admin/users` | 账号列表 / 新建（管事只能看和建客服、打手） |
+| PUT/DELETE | `/api/admin/users/{id}` | 改资料、停用、重置密码 / 删除 |
+| GET | `/api/admin/logs` | 操作日志 |
+| GET/PUT | `/api/admin/settings` | 站点设置（支付字段仅董事长能写） |
+| POST | `/api/admin/upload` | 上传图片（base64） |
+| GET | `/api/staff/orders` | 打手任务，`scope=pool` 接单池 / `scope=mine` 我的 |
+| GET | `/api/staff/orders/{id}` | 打手任务详情（手机号脱敏） |
+| POST | `/api/staff/orders/{id}/claim` | 接单 |
+| POST | `/api/staff/orders/{id}/progress` | 提交进度，可带 base64 图片 |
+| POST | `/api/staff/orders/{id}/status` | 开始 / 完成 |
+| GET | `/api/staff/summary` | 打手汇总或客服队列统计 |
 
-后台接口带 `Authorization: Bearer <token>`。
+所有后台和工作台接口都带 `Authorization: Bearer <token>`；令牌里带角色，越权会直接 403。
 
 ## 测试和打包
 
 ```bash
-bash scripts/smoke.sh python     # 起服务跑一遍下单流程
+bash scripts/smoke.sh python     # 起服务跑下单、支付、四角色权限与派单/进度
 bash scripts/smoke.sh go
 bash scripts/package-py.sh       # dist/wunding-escort-python-*.zip
 bash scripts/package-go.sh       # dist/wunding-escort-go-*-linux-*.zip
@@ -156,7 +189,9 @@ bash scripts/package-go.sh       # dist/wunding-escort-go-*-linux-*.zip
 
 GitHub Actions（`.github/workflows/release.yml`）会分别测两套后端，然后打包上传；推 `v*` tag 时自动发 Release。产物在 Actions 页面或 Release 里都能下。
 
-更细的部署步骤：Termux 看 [docs/TERMUX.md](docs/TERMUX.md)，服务器和 Nginx 看 [docs/DEPLOY.md](docs/DEPLOY.md)，收款和在线支付看 [docs/PAYMENT.md](docs/PAYMENT.md)。
+更细的部署步骤：Termux 看 [docs/TERMUX.md](docs/TERMUX.md)，服务器和 Nginx 看 [docs/DEPLOY.md](docs/DEPLOY.md)，收款和在线支付看 [docs/PAYMENT.md](docs/PAYMENT.md)，四端分工看 [docs/ROLES.md](docs/ROLES.md)。
+
+演示数据：先启动服务，再执行 `python3 scripts/demo_seed.py http://127.0.0.1:8080`，会建 `kefu01`（客服）、`dashou01` / `dashou02`（打手）、`guan01`（管事），密码统一 `pass1234`，并造几笔不同状态的订单。**不要对生产库执行。**
 
 ## 说明
 
@@ -166,6 +201,9 @@ GitHub Actions（`.github/workflows/release.yml`）会分别测两套后端，�
 - 在线支付走易支付标准接口，签名 MD5，回调会核对金额和交易状态；商户密钥只存服务端，前台接口拿不到。
 - 没开在线支付也能用收款码：用户传截图，后台人工确认到账。
 - 静态文件做了路径穿越检查，页面响应带 CSP。
+- 四个角色的权限在后端按路由校验，前端隐藏按钮只是辅助，直接调接口一样会被拒。
+- 打手只看到自己的订单和公共接单池；手机号脱敏，付款截图不下发。
+- 打手的分成比例只做展示估算，系统不自动结算、不提现。
 - 这套系统按「工作室自用」的规模做的，日单量上百没问题；再往上建议换正式数据库。
 
 ## 版权

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>打手端 · 无定电竞护航</title>
+  <link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body class="console-body staff-body">
+  <div class="login-mask" id="loginView">
+    <form class="login-card" id="loginForm">
+      <div class="login-brand">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div><strong>打手端</strong><span>接单、上号、报进度 · 无定科技</span></div>
+      </div>
+      <div class="field"><label>账号</label><input id="loginUser" type="text" autocomplete="username" placeholder="打手账号" required /></div>
+      <div class="field"><label>密码</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="登录密码" required /></div>
+      <button class="btn btn-primary btn-block" type="submit" id="loginBtn">登 录</button>
+      <p class="hint" id="loginError" style="color:#ff6b81;min-height:16px"></p>
+      <p class="login-foot">客服 <a href="/support/">客服端</a> · 管事 <a href="/manager/">管事端</a></p>
+    </form>
+  </div>
+
+  <div id="appView" style="display:none">
+    <header class="console-top staff-top">
+      <div class="console-brand">
+        <img src="/assets/img/logo.svg" alt="无定科技" />
+        <div><strong>打手端</strong><span data-user-name>--</span></div>
+      </div>
+      <div class="console-actions">
+        <button class="btn btn-ghost btn-sm" data-logout>退出</button>
+      </div>
+    </header>
+
+    <main class="console-main staff-main">
+      <div class="console-cards staff-cards" id="kpis"></div>
+
+      <div class="staff-tabs" id="tabs">
+        <button class="active" data-scope="pool">可接单 <em id="poolCount">0</em></button>
+        <button data-scope="mine">我的任务 <em id="mineCount">0</em></button>
+      </div>
+
+      <section id="taskList" class="task-list"></section>
+      <div class="console-empty" id="taskEmpty" style="display:none">暂时没有单，刷新一下或者等客服派单</div>
+    </main>
+  </div>
+
+  <div class="modal-mask" id="taskMask">
+    <div class="modal">
+      <h3 id="taskTitle">任务详情</h3>
+      <div id="taskBody"></div>
+      <div class="progress-form">
+        <textarea id="progressText" maxlength="200" placeholder="写一句进度，例如：已上号，打完第一局"></textarea>
+        <div class="progress-actions">
+          <label class="btn btn-ghost btn-sm file-btn">配图（可选）<input id="progressFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden /></label>
+          <button class="btn btn-primary btn-sm" id="progressSend">提交进度</button>
+        </div>
+      </div>
+      <div class="modal-actions" style="justify-content:space-between">
+        <button class="btn btn-ghost" type="button" id="taskClose">关闭</button>
+        <div id="taskActions"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/station.js"></script>
+  <script src="/assets/js/staff.js"></script>
+</body>
+</html>
