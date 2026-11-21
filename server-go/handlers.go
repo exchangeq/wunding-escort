@@ -182,6 +182,8 @@ func handleSite(c *ctx, _ map[string]any) error {
 		return apiError(500, "数据读取失败", "STORE_ERROR")
 	}
 
+	settings.Payment = publicPayment(settings.Payment)
+
 	games := []map[string]any{}
 	counts := map[string]int{}
 	order := []string{}
@@ -357,7 +359,8 @@ func handleCreateOrder(c *ctx, body map[string]any) error {
 				Price: p.Price, Unit: p.Unit, Qty: qty, Amount: amount,
 				ContactName: contactName, ContactPhone: contactPhone,
 				GameAccount: gameAccount, Server: server, Note: note,
-				Status: "pending", CreatedAt: nowISO(), UpdatedAt: nowISO(),
+				Status: "pending", PayStatus: "unpaid",
+				CreatedAt: nowISO(), UpdatedAt: nowISO(),
 			}
 			db.Orders = append([]Order{order}, db.Orders...)
 			p.Stock -= qty
@@ -383,6 +386,8 @@ func handleCreateOrder(c *ctx, body map[string]any) error {
 		"amount":       order.Amount,
 		"status":       order.Status,
 		"productTitle": order.ProductTitle,
+		"payStatus":    "unpaid",
+		"payment":      publicPayment(settings.Payment),
 		"kefu":         settings.Kefu,
 		"tips":         settings.OrderTips,
 	})
@@ -422,6 +427,11 @@ func handleTrackOrder(c *ctx, _ map[string]any) error {
 		"gameAccount":  order.GameAccount,
 		"server":       order.Server,
 		"note":         order.Note,
+		"payStatus":    firstNonEmpty(order.PayStatus, "unpaid"),
+		"payMethod":    order.PayMethod,
+		"payAt":        order.PayAt,
+		"payProof":     order.PayProof,
+		"payment":      publicPayment(settings.Payment),
 		"createdAt":    order.CreatedAt,
 		"updatedAt":    order.UpdatedAt,
 		"kefu":         settings.Kefu,
@@ -551,6 +561,7 @@ func handleOverview(c *ctx, _ map[string]any) error {
 	totals := map[string]any{
 		"orders": len(orders), "pending": 0, "processing": 0, "done": 0, "cancelled": 0,
 		"todayOrders": 0, "revenue": 0.0, "products": len(products), "onSale": 0,
+		"unpaid": 0, "payReview": 0, "paid": 0,
 	}
 	revenue := 0.0
 	for _, p := range products {
@@ -567,6 +578,14 @@ func handleOverview(c *ctx, _ map[string]any) error {
 		}
 		if strings.HasPrefix(o.CreatedAt, today) {
 			totals["todayOrders"] = totals["todayOrders"].(int) + 1
+		}
+		switch firstNonEmpty(o.PayStatus, "unpaid") {
+		case "unpaid":
+			totals["unpaid"] = totals["unpaid"].(int) + 1
+		case "review":
+			totals["payReview"] = totals["payReview"].(int) + 1
+		case "paid":
+			totals["paid"] = totals["paid"].(int) + 1
 		}
 	}
 	totals["revenue"] = round2(revenue)
@@ -881,6 +900,30 @@ func handleUpdateSettings(c *ctx, body map[string]any) error {
 			s.Kefu = Kefu{
 				QQ: bodyString(kefu, "qq", 40), WeChat: bodyString(kefu, "wechat", 40),
 				Phone: bodyString(kefu, "phone", 40), Hours: bodyString(kefu, "hours", 60),
+			}
+		}
+		if payment, ok := body["payment"].(map[string]any); ok {
+			manual, _ := payment["manual"].(map[string]any)
+			epay, _ := payment["epay"].(map[string]any)
+			ptype := bodyString(epay, "type", 10)
+			if ptype != "wxpay" {
+				ptype = "alipay"
+			}
+			s.Payment = Payment{
+				Manual: PayManual{
+					Enabled:  manual["enabled"] == true,
+					WechatQr: bodyString(manual, "wechatQr", 300),
+					AlipayQr: bodyString(manual, "alipayQr", 300),
+					Note:     bodyString(manual, "note", 200),
+				},
+				Epay: PayEpay{
+					Enabled: epay["enabled"] == true,
+					Gateway: strings.TrimRight(bodyString(epay, "gateway", 200), "/"),
+					Pid:     bodyString(epay, "pid", 40),
+					Key:     bodyString(epay, "key", 120),
+					Type:    ptype,
+					Name:    firstNonEmpty(bodyString(epay, "name", 20), "在线支付"),
+				},
 			}
 		}
 		if stats, ok := body["heroStats"].([]any); ok {

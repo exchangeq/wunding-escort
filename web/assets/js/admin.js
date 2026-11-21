@@ -107,13 +107,14 @@
         ['护航中', t.processing, '单'],
         ['已完成', t.done, '单'],
         ['今日新增', t.todayOrders, '单'],
+        ['待确认付款', t.payReview || 0, '单'],
         ['已完成收入', '¥' + UI.money(t.revenue), ''],
         ['在售商品', t.onSale + ' / ' + t.products, '个']
       ]
         .map(function (item, i) {
           return (
             '<div class="kpi"><label>' + item[0] + '</label><b style="' +
-            (i === 5 ? 'color:#ffc75a' : '') + '">' + UI.escape(item[1]) +
+            (i === 6 ? 'color:#ffc75a' : '') + '">' + UI.escape(item[1]) +
             (item[2] ? '<small>' + item[2] + '</small>' : '') + '</b></div>'
           );
         })
@@ -139,12 +140,13 @@
                 '<td>' + UI.escape(o.productTitle) + '</td>' +
                 '<td>' + UI.escape(o.contactName) + '</td>' +
                 '<td>¥' + UI.money(o.amount) + '</td>' +
+                '<td>' + UI.payStatus(o.payStatus || 'unpaid') + '</td>' +
                 '<td>' + UI.status(o.status) + '</td>' +
                 '<td>' + UI.date(o.createdAt) + '</td></tr>'
               );
             })
             .join('')
-        : '<tr><td colspan="6" style="text-align:center;color:#8fa1c4;padding:22px">暂无订单</td></tr>';
+        : '<tr><td colspan="7" style="text-align:center;color:#8fa1c4;padding:22px">暂无订单</td></tr>';
 
       document.getElementById('logLine').textContent = data.logs.length
         ? '最新：' + data.logs[0].action
@@ -159,7 +161,7 @@
     var q = document.getElementById('prodSearch').value.trim();
     var game = document.getElementById('prodGame').value;
     var rows = document.getElementById('productRows');
-    rows.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px">加载中…</td></tr>';
+    rows.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px">加载中…</td></tr>';
     try {
       var data = await API.get('/api/admin/products' + UI.params({ q: q, game: game }));
       state.products = data.items;
@@ -198,7 +200,7 @@
             .join('')
         : '<tr><td colspan="10" style="text-align:center;color:#8fa1c4;padding:26px">还没有商品，点击右上角「新增商品」开始上架</td></tr>';
     } catch (err) {
-      rows.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
+      rows.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
     }
   }
 
@@ -359,6 +361,10 @@
                 actions += '<button class="btn btn-ghost btn-sm" data-oact="done" data-id="' + o.id + '">完成</button>';
               if (o.status !== 'done' && o.status !== 'cancelled')
                 actions += '<button class="btn btn-ghost btn-sm" data-oact="cancelled" data-id="' + o.id + '">取消</button>';
+              if ((o.payStatus || 'unpaid') !== 'paid')
+                actions += '<button class="btn btn-ghost btn-sm" data-oact="pay-confirm" data-id="' + o.id + '">确认到账</button>';
+              if (o.payStatus === 'paid')
+                actions += '<button class="btn btn-ghost btn-sm" data-oact="pay-refund" data-id="' + o.id + '">退款</button>';
               actions += '<button class="btn btn-sm btn-danger" data-oact="del" data-id="' + o.id + '">删除</button>';
               return (
                 '<tr>' +
@@ -366,6 +372,7 @@
                 '<td style="min-width:180px">' + UI.escape(o.productTitle) + '</td>' +
                 '<td>' + o.qty + '</td>' +
                 '<td style="color:#ffc75a">¥' + UI.money(o.amount) + '</td>' +
+                '<td>' + UI.payStatus(o.payStatus || 'unpaid') + '</td>' +
                 '<td>' + UI.escape(o.contactName) + '<div class="hint">' + UI.escape(o.contactPhone) + '</div></td>' +
                 '<td>' + UI.escape(o.gameAccount) + '<div class="hint">' + UI.escape(o.server || '') + '</div></td>' +
                 '<td style="max-width:180px;color:#8fa1c4;font-size:12px">' + UI.escape(o.note || '—') + '</td>' +
@@ -376,7 +383,7 @@
               );
             })
             .join('')
-        : '<tr><td colspan="10" style="text-align:center;color:#8fa1c4;padding:26px">暂无订单</td></tr>';
+        : '<tr><td colspan="11" style="text-align:center;color:#8fa1c4;padding:26px">暂无订单</td></tr>';
     } catch (err) {
       rows.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#ff6b81;padding:22px">' + UI.escape(err.message) + '</td></tr>';
     }
@@ -388,6 +395,11 @@
         if (!confirm('确定删除该订单记录？')) return;
         await API.del('/api/admin/orders/' + encodeURIComponent(id));
         UI.toast('订单已删除', 'ok');
+      } else if (act === 'pay-confirm' || act === 'pay-refund') {
+        if (act === 'pay-refund' && !confirm('确认把这单标记为已退款？')) return;
+        await API.put('/api/admin/orders/' + encodeURIComponent(id) + '/payment',
+          { action: act === 'pay-confirm' ? 'confirm' : 'refund' });
+        UI.toast(act === 'pay-confirm' ? '已确认到账' : '已标记退款', 'ok');
       } else {
         await API.put('/api/admin/orders/' + encodeURIComponent(id), { status: act });
         UI.toast('订单状态已更新为「' + UI.statusText(act) + '」', 'ok');
@@ -399,6 +411,30 @@
   }
 
   /* ------------------------------ 设置 ------------------------------ */
+  function setQrPreview(kind, url) {
+    var img = document.getElementById('s-pay-' + kind + '-img');
+    if (!img) return;
+    img.src = url || '';
+    img.style.display = url ? 'block' : 'none';
+  }
+
+  async function uploadQr(kind, file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return UI.toast('图片别超过 5MB', 'err');
+    var reader = new FileReader();
+    reader.onload = async function () {
+      try {
+        var res = await API.post('/api/admin/upload', { data: reader.result });
+        document.getElementById('s-pay-' + kind).value = res.url;
+        setQrPreview(kind, res.url);
+        UI.toast('收款码已上传，记得点保存', 'ok');
+      } catch (err) {
+        UI.toast(err.message, 'err');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
   function heroFields(stats) {
     var wrap = document.getElementById('heroStatFields');
     var data = (stats && stats.length ? stats : [0, 1, 2, 3].map(function () {
@@ -437,6 +473,24 @@
       document.getElementById('s-kefu-phone').value = (s.kefu && s.kefu.phone) || '';
       document.getElementById('s-kefu-hours').value = (s.kefu && s.kefu.hours) || '';
       heroFields(s.heroStats);
+
+      var pay = s.payment || {};
+      var manual = pay.manual || {};
+      var epay = pay.epay || {};
+      document.getElementById('s-pay-manual-enabled').checked = manual.enabled !== false;
+      document.getElementById('s-pay-wechat').value = manual.wechatQr || '';
+      document.getElementById('s-pay-alipay').value = manual.alipayQr || '';
+      document.getElementById('s-pay-note').value = manual.note || '';
+      setQrPreview('wechat', manual.wechatQr || '');
+      setQrPreview('alipay', manual.alipayQr || '');
+      document.getElementById('s-pay-epay-enabled').checked = !!epay.enabled;
+      document.getElementById('s-pay-gateway').value = epay.gateway || '';
+      document.getElementById('s-pay-pid').value = epay.pid || '';
+      document.getElementById('s-pay-key').value = epay.key || '';
+      document.getElementById('s-pay-type').value = epay.type || 'alipay';
+      document.getElementById('s-pay-name').value = epay.name || '在线支付';
+      var notify = document.getElementById('payNotifyUrl');
+      if (notify) notify.textContent = location.origin + '/api/pay/notify';
     } catch (err) {
       UI.toast(err.message, 'err');
     }
@@ -463,6 +517,22 @@
       icp: document.getElementById('s-icp').value.trim(),
       orderTips: document.getElementById('s-orderTips').value.trim(),
       heroStats: stats,
+      payment: {
+        manual: {
+          enabled: document.getElementById('s-pay-manual-enabled').checked,
+          wechatQr: document.getElementById('s-pay-wechat').value.trim(),
+          alipayQr: document.getElementById('s-pay-alipay').value.trim(),
+          note: document.getElementById('s-pay-note').value.trim()
+        },
+        epay: {
+          enabled: document.getElementById('s-pay-epay-enabled').checked,
+          gateway: document.getElementById('s-pay-gateway').value.trim(),
+          pid: document.getElementById('s-pay-pid').value.trim(),
+          key: document.getElementById('s-pay-key').value.trim(),
+          type: document.getElementById('s-pay-type').value,
+          name: document.getElementById('s-pay-name').value.trim() || '在线支付'
+        }
+      },
       kefu: {
         qq: document.getElementById('s-kefu-qq').value.trim(),
         wechat: document.getElementById('s-kefu-wechat').value.trim(),
@@ -556,6 +626,12 @@
 
     // 设置
     document.getElementById('settingsForm').addEventListener('submit', saveSettings);
+    ['wechat', 'alipay'].forEach(function (kind) {
+      document.getElementById('s-pay-' + kind + '-file').addEventListener('change', function (e) {
+        uploadQr(kind, e.target.files && e.target.files[0]);
+        e.target.value = '';
+      });
+    });
     document.getElementById('reloadSettingsBtn').addEventListener('click', loadSettings);
     document.getElementById('passwordForm').addEventListener('submit', changePassword);
   }

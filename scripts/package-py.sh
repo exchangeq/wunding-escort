@@ -11,7 +11,7 @@ STAGE="$ROOT/dist/.stage/$NAME"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/server-py" "$STAGE/data"
 
-cp -R web termux server-py deploy "$STAGE/"
+cp -R web termux server-py deploy docs "$STAGE/"
 cp seed.json README.md LICENSE VERSION start.sh start-go.sh "$STAGE/" 2>/dev/null || true
 rm -f "$STAGE/start-go.sh"
 

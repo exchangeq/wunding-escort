@@ -158,6 +158,17 @@ func normalizeDB(db *DB) {
 		db.Admin.Username = "wunding"
 		db.Admin.PasswordHash = hashPassword(envOr("ADMIN_PASS", "wunding2026"))
 	}
+	if db.Settings.Payment.Epay.Type == "" && db.Settings.Payment.Epay.Gateway == "" &&
+		db.Settings.Payment.Epay.Pid == "" && db.Settings.Payment.Manual.Note == "" {
+		db.Settings.Payment.Manual.Enabled = true
+		db.Settings.Payment.Manual.Note = "付款时在备注里写上订单号，客服核对到账后排单。"
+	}
+	if db.Settings.Payment.Epay.Type == "" {
+		db.Settings.Payment.Epay.Type = "alipay"
+	}
+	if db.Settings.Payment.Epay.Name == "" {
+		db.Settings.Payment.Epay.Name = "在线支付"
+	}
 	if db.Settings.Copyright == "" {
 		db.Settings.Copyright = "© 2026 无定科技 版权所有"
 	}

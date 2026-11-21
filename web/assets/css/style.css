@@ -523,3 +523,64 @@ td .thumb { width: 46px; height: 30px; border-radius: 6px; object-fit: cover; ba
   .track-search { flex-direction: column; }
   .buy-price .price { font-size: 28px; }
 }
+
+/* ---------- 付款面板 ---------- */
+.pay-box {
+  border: 1px solid rgba(80, 120, 180, .25);
+  border-radius: 12px;
+  background: rgba(9, 15, 28, .62);
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+}
+.pay-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pay-state { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; }
+.pay-unpaid { color: #ffc75a; border-color: rgba(255, 199, 90, .35); background: rgba(255, 199, 90, .1); }
+.pay-review { color: #8fb5ff; border-color: rgba(143, 181, 255, .35); background: rgba(143, 181, 255, .1); }
+.pay-paid { color: #4be3a3; border-color: rgba(75, 227, 163, .35); background: rgba(75, 227, 163, .1); }
+.pay-refunded { color: #ff8f9e; border-color: rgba(255, 143, 158, .35); background: rgba(255, 143, 158, .1); }
+.pay-total { color: #c3d0e6; font-size: 13px; }
+.pay-total b { color: #ffc75a; font-size: 18px; margin-left: 4px; }
+
+.qr-tabs { display: flex; gap: 8px; }
+.qr-tab {
+  padding: 5px 14px; border-radius: 8px; font-size: 12.5px; cursor: pointer;
+  border: 1px solid rgba(80, 120, 180, .3); background: transparent; color: #c3d0e6;
+}
+.qr-tab.active { border-color: #35e6ff; color: #35e6ff; background: rgba(53, 230, 255, .08); }
+.qr-panel { display: none; gap: 14px; align-items: center; }
+.qr-panel { display: flex; }
+.qr-img { display: none; width: 148px; height: 148px; object-fit: contain; border-radius: 10px; background: #fff; padding: 4px; }
+.qr-img.show { display: block; }
+.qr-side { display: grid; gap: 8px; font-size: 13px; color: #a9b8d1; }
+.qr-side p { margin: 0; }
+.qr-side .pay-no { color: #7fe3ff; letter-spacing: .5px; }
+.qr-side .btn { justify-self: start; }
+.pay-amount { display: none; }
+
+.pay-note { font-size: 12.5px; color: #8fa1c4; line-height: 1.7; }
+.pay-note.ok { color: #4be3a3; }
+.pay-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.pay-proof { font-size: 12.5px; color: #7fe3ff; }
+
+/* ---------- 后台支付设置 ---------- */
+.pay-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.qr-upload { display: flex; gap: 12px; align-items: center; }
+.qr-upload img { width: 88px; height: 88px; object-fit: contain; border-radius: 8px; background: #fff; padding: 3px; border: 1px solid rgba(80,120,180,.3); }
+.qr-upload .btn { white-space: nowrap; }
+.check-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c3d0e6; }
+.check-line input { width: auto; }
+.pay-hint { font-size: 12px; color: #8fa1c4; line-height: 1.7; margin: 0; }
+
+.status-pill.pay-unpaid { color: #ffc75a; background: rgba(255, 199, 90, .12); }
+.status-pill.pay-review { color: #8fb5ff; background: rgba(143, 181, 255, .12); }
+.status-pill.pay-paid { color: #4be3a3; background: rgba(75, 227, 163, .12); }
+.status-pill.pay-refunded { color: #ff8f9e; background: rgba(255, 143, 158, .12); }
+
+@media (max-width: 640px) {
+  .qr-panel { flex-direction: column; align-items: flex-start; }
+  .qr-img { width: 168px; height: 168px; }
+  .pay-field-row { grid-template-columns: 1fr; }
+}

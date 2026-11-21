@@ -33,6 +33,7 @@
     document.getElementById('rCreated').textContent = UI.date(order.createdAt);
     document.getElementById('rNote').textContent = order.note || '无';
     paintTimeline(order.status);
+    if (window.PAYUI) PAYUI.render(document.getElementById('payBox'), order, order.payment);
     if (order.status === 'cancelled') {
       UI.toast('该订单已取消，如有疑问请联系客服', 'err');
     }

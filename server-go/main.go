@@ -27,6 +27,11 @@ var routes = []route{
 	{"GET", "/api/products/{id}", false, handleProductDetail},
 	{"POST", "/api/orders", false, handleCreateOrder},
 	{"GET", "/api/orders/{orderNo}", false, handleTrackOrder},
+	{"POST", "/api/orders/{orderNo}/proof", false, handleSubmitProof},
+	{"POST", "/api/orders/{orderNo}/pay", false, handlePayCreate},
+	{"GET", "/api/pay/notify", false, handleEpayNotify},
+	{"POST", "/api/pay/notify", false, handleEpayNotify},
+	{"GET", "/api/pay/return", false, handleEpayReturn},
 	{"POST", "/api/admin/login", false, handleLogin},
 	{"GET", "/api/admin/me", true, handleMe},
 	{"GET", "/api/admin/overview", true, handleOverview},
@@ -36,6 +41,7 @@ var routes = []route{
 	{"DELETE", "/api/admin/products/{id}", true, handleDeleteProduct},
 	{"GET", "/api/admin/orders", true, handleAdminOrders},
 	{"PUT", "/api/admin/orders/{id}", true, handleUpdateOrder},
+	{"PUT", "/api/admin/orders/{id}/payment", true, handleAdminOrderPayment},
 	{"DELETE", "/api/admin/orders/{id}", true, handleDeleteOrder},
 	{"GET", "/api/admin/settings", true, handleGetSettings},
 	{"PUT", "/api/admin/settings", true, handleUpdateSettings},
@@ -125,17 +131,23 @@ func dispatch(w http.ResponseWriter, r *http.Request) {
 		c.user = payload
 	}
 
+	if path == "/api/pay/notify" {
+		_ = r.ParseForm()
+	}
+
 	limit := int64(512 * 1024)
-	if path == "/api/admin/upload" {
+	if path == "/api/admin/upload" || strings.HasSuffix(path, "/proof") {
 		limit = 8 * 1024 * 1024
 	}
-	if err := c.readBody(limit); err != nil {
-		if apiErr, ok := err.(*APIError); ok {
-			failMsg(w, apiErr.Status, apiErr.Message, apiErr.Code)
+	if path != "/api/pay/notify" {
+		if err := c.readBody(limit); err != nil {
+			if apiErr, ok := err.(*APIError); ok {
+				failMsg(w, apiErr.Status, apiErr.Message, apiErr.Code)
+				return
+			}
+			failMsg(w, 400, "请求格式不对", "BAD_REQUEST")
 			return
 		}
-		failMsg(w, 400, "请求格式不对", "BAD_REQUEST")
-		return
 	}
 
 	if err := matched.handler(c, c.body); err != nil {

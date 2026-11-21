@@ -88,6 +88,7 @@
       document.getElementById('okQq').textContent = (data.kefu && data.kefu.qq) || '--';
       document.getElementById('okWechat').textContent = (data.kefu && data.kefu.wechat) || '--';
       document.getElementById('okTrack').href = '/track.html?no=' + encodeURIComponent(data.orderNo);
+      if (window.PAYUI) PAYUI.render(document.getElementById('payBox'), data, data.payment);
       document.getElementById('successMask').classList.add('show');
       UI.toast('下单成功，订单号 ' + data.orderNo, 'ok');
     } catch (err) {

@@ -139,6 +139,62 @@ AMOUNT_INT="$(python3 -c "print(round(float('$AMOUNT')))")"
 [ "$AMOUNT_INT" = "199" ] || die "金额算错：$AMOUNT"
 pass "下单成功（$NO，¥$AMOUNT）"
 
+# ---- 支付：凭证 → 后台确认 ----
+curl -fsS -X POST "$BASE/api/orders/$NO/proof" -H 'Content-Type: application/json' \
+  -d "{\"data\":\"$PNG\"}" | grep -c '"review"' > /dev/null || die "付款凭证上传失败"
+pass "付款凭证上传，状态转为待确认"
+
+curl -fsS -X PUT "$BASE/api/admin/orders/$NO/payment" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"action":"confirm"}' | grep -c '"paid"' > /dev/null || die "后台确认到账失败"
+contains "$(get "$BASE/api/orders/$NO")" '"payStatus":"paid"' || die "查单看不到已到账"
+pass "后台确认到账，查单同步"
+
+# ---- 支付：易支付下单 + 异步通知验签 ----
+curl -fsS -X PUT "$BASE/api/admin/settings" -H "$AUTH" -H 'Content-Type: application/json' -d '{
+  "payment":{
+    "manual":{"enabled":true,"wechatQr":"","alipayQr":"","note":"冒烟备注"},
+    "epay":{"enabled":true,"gateway":"https://pay.smoke.local","pid":"1001","key":"smoke-epay-key","type":"alipay","name":"在线支付"}
+  }
+}' > /dev/null || die "支付设置保存失败"
+
+python3 - "$BASE" "$AUTH" <<'PY'
+import hashlib, json, sys, urllib.parse, urllib.request
+base, auth = sys.argv[1], sys.argv[2]
+
+def req(path, method='GET', body=None, token=None, raw=False):
+    data = json.dumps(body).encode() if body is not None else None
+    headers = {'Content-Type': 'application/json'}
+    if token:
+        headers['Authorization'] = 'Bearer ' + token
+    with urllib.request.urlopen(urllib.request.Request(base + path, method=method, data=data, headers=headers)) as r:
+        text = r.read().decode()
+        return text if raw else json.loads(text)
+
+order = req('/api/orders', 'POST', {
+    'productId': 1, 'qty': 1, 'contactName': '冒烟支付',
+    'contactPhone': '13900000000', 'gameAccount': 'SmokePay'
+})['data']
+no = order['orderNo']
+url = req('/api/orders/%s/pay' % no, 'POST', {})['data']['payUrl']
+assert 'sign=' in url, '没生成签名'
+values = {k: v[0] for k, v in urllib.parse.parse_qs(urllib.parse.urlparse(url).query).items()
+          if k not in ('sign', 'sign_type')}
+values.update({'trade_no': 'SMOKE20261121', 'trade_status': 'TRADE_SUCCESS'})
+values['sign'] = hashlib.md5(
+    ('&'.join('%s=%s' % (k, values[k]) for k in sorted(values)) + 'smoke-epay-key').encode()
+).hexdigest()
+values['sign_type'] = 'MD5'
+resp = req('/api/pay/notify?' + urllib.parse.urlencode(values), raw=True)
+assert resp.strip() == 'success', '通知返回：' + resp
+track = req('/api/orders/' + no)['data']
+assert track['payStatus'] == 'paid' and track['payMethod'] == 'epay', track
+values['sign'] = '0' * 32
+bad = req('/api/pay/notify?' + urllib.parse.urlencode(values), raw=True)
+assert bad.strip() == 'fail', '错误签名没被拒绝'
+print('✓ 在线支付下单链接与异步通知验签正常')
+print('✓ 错误签名被拒绝')
+PY
+
 TRACK="$(get "$BASE/api/orders/$NO")"
 contains "$TRACK" "138****0000" || die "手机号没脱敏"
 pass "订单查询正常且手机号脱敏"

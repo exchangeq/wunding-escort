@@ -74,6 +74,13 @@
     cancelled: { text: '已取消', cls: 'status-cancelled' }
   };
 
+  var PAY = {
+    unpaid: { text: '待付款', cls: 'pay-unpaid' },
+    review: { text: '待确认', cls: 'pay-review' },
+    paid: { text: '已到账', cls: 'pay-paid' },
+    refunded: { text: '已退款', cls: 'pay-refunded' }
+  };
+
   var UI = {
     escape: function (value) {
       return String(value === undefined || value === null ? '' : value)
@@ -96,6 +103,15 @@
 
     statusText: function (key) {
       return (STATUS[key] || { text: key }).text;
+    },
+
+    payStatus: function (key) {
+      var p = PAY[key] || PAY.unpaid;
+      return '<span class="status-pill ' + p.cls + '">' + p.text + '</span>';
+    },
+
+    payStatusText: function (key) {
+      return (PAY[key] || PAY.unpaid).text;
     },
 
     date: function (value) {

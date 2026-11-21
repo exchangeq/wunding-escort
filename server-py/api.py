@@ -3,8 +3,10 @@
 import base64
 import binascii
 import hashlib
+import hmac
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlencode
 
 import security
 import store
@@ -45,15 +47,37 @@ def health(ctx):
     ok(ctx.h, {"status": "ok", "time": now_iso()})
 
 
+def _payment_public(settings):
+    pay = settings.get("payment") or {}
+    manual = pay.get("manual") or {}
+    epay = pay.get("epay") or {}
+    epay_on = bool(epay.get("enabled")) and bool(epay.get("gateway")) and bool(epay.get("pid")) and bool(epay.get("key"))
+    return {
+        "manual": {
+            "enabled": bool(manual.get("enabled", True)),
+            "wechatQr": manual.get("wechatQr") or "",
+            "alipayQr": manual.get("alipayQr") or "",
+            "note": manual.get("note") or "",
+        },
+        "epay": {
+            "enabled": epay_on,
+            "name": epay.get("name") or "在线支付",
+            "type": epay.get("type") or "alipay",
+        },
+    }
+
+
 def site(ctx):
     db = store.load()
     items = _visible(db)
+    settings = dict(db["settings"])
+    settings["payment"] = _payment_public(db["settings"])
     games = {}
     for p in items:
         games[p.get("game") or "其他"] = games.get(p.get("game") or "其他", 0) + 1
     categories = sorted({p.get("category") for p in items if p.get("category")})
     ok(ctx.h, {
-        "settings": db["settings"],
+        "settings": settings,
         "games": [{"name": k, "count": v} for k, v in games.items()],
         "categories": categories,
         "productCount": len(items),
@@ -155,6 +179,12 @@ def create_order(ctx):
         "server": server,
         "note": note,
         "status": "pending",
+        "payStatus": "unpaid",
+        "payMethod": "",
+        "payAt": "",
+        "payTradeNo": "",
+        "payProof": "",
+        "payNote": "",
         "createdAt": now_iso(),
         "updatedAt": now_iso(),
     }
@@ -174,6 +204,8 @@ def create_order(ctx):
         "amount": amount,
         "status": "pending",
         "productTitle": product.get("title"),
+        "payStatus": "unpaid",
+        "payment": _payment_public(db["settings"]),
         "kefu": db["settings"].get("kefu"),
         "tips": db["settings"].get("orderTips"),
     }, 201)
@@ -198,10 +230,213 @@ def track_order(ctx):
         "gameAccount": order.get("gameAccount"),
         "server": order.get("server"),
         "note": order.get("note"),
+        "payStatus": order.get("payStatus") or "unpaid",
+        "payMethod": order.get("payMethod") or "",
+        "payAt": order.get("payAt") or "",
+        "payProof": order.get("payProof") or "",
+        "payment": _payment_public(db["settings"]),
         "createdAt": order.get("createdAt"),
         "updatedAt": order.get("updatedAt"),
         "kefu": db["settings"].get("kefu"),
     })
+
+
+# ---------------------------------------------------------------- 支付
+
+MAGIC = {
+    "image/png": ("png", b"\x89PNG"),
+    "image/jpeg": ("jpg", b"\xff\xd8\xff"),
+    "image/gif": ("gif", b"GIF"),
+    "image/webp": ("webp", b"RIFF"),
+}
+
+PAY_ACTIONS = {"confirm": "paid", "refund": "refunded", "unpaid": "unpaid"}
+
+
+def _save_image(data_url, limit=5 * 1024 * 1024, name_hint=""):
+    data_url = str(data_url or "")
+    if "," not in data_url or not data_url.startswith("data:"):
+        raise HttpError(400, "图片数据不对", "BAD_IMAGE")
+    header, payload = data_url.split(",", 1)
+    mime = header[5:].split(";")[0].lower()
+    if mime not in MAGIC:
+        raise HttpError(400, "只支持 PNG / JPG / GIF / WEBP", "UNSUPPORTED_IMAGE")
+    try:
+        raw = base64.b64decode(payload, validate=True)
+    except (binascii.Error, ValueError):
+        raise HttpError(400, "图片数据损坏", "BAD_IMAGE")
+    if len(raw) > limit:
+        raise HttpError(413, "图片不要超过 {}MB".format(limit // (1024 * 1024)), "TOO_LARGE")
+    ext, magic = MAGIC[mime]
+    if len(raw) < 12 or not raw.startswith(magic):
+        raise HttpError(400, "图片内容和格式不匹配", "BAD_IMAGE")
+    name = "img_{}_{}.{}".format(hashlib.sha256(raw).hexdigest()[:16], uid()[:8], ext)
+    Path(store.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    (Path(store.UPLOAD_DIR) / name).write_bytes(raw)
+    return "/uploads/" + name, len(raw)
+
+
+def _find_order(db, no):
+    no = str(no or "").strip().upper()[:40]
+    return next((o for o in db["orders"] if str(o.get("orderNo")).upper() == no), None)
+
+
+def _base_url(h):
+    proto = (h.headers.get("X-Forwarded-Proto") or "http").split(",")[0].strip() or "http"
+    host = h.headers.get("Host") or "127.0.0.1"
+    return "{}://{}".format(proto, host)
+
+
+def _epay_sign(params, key):
+    pairs = []
+    for k in sorted(params):
+        if k in ("sign", "sign_type"):
+            continue
+        v = params[k]
+        if v is None or str(v) == "":
+            continue
+        pairs.append("{}={}".format(k, v))
+    return hashlib.md5(("&".join(pairs) + key).encode("utf-8")).hexdigest().lower()
+
+
+def submit_proof(ctx):
+    no = (ctx.params.get("orderNo") or "").strip().upper()
+    cost = ctx.body.get("data")
+    url, size = _save_image(cost, limit=3 * 1024 * 1024)
+    holder = {}
+
+    def mutate(db):
+        order = _find_order(db, no)
+        if not order:
+            raise HttpError(404, "没查到这个订单号", "ORDER_NOT_FOUND")
+        if order.get("payStatus") == "paid":
+            raise HttpError(400, "这单已经确认到账了", "ALREADY_PAID")
+        order["payStatus"] = "review"
+        order["payMethod"] = order.get("payMethod") or "manual"
+        order["payProof"] = url
+        order["updatedAt"] = now_iso()
+        store.add_log(db, "上传付款凭证 " + str(order.get("orderNo")))
+        holder["o"] = order
+        return order
+
+    store.update(mutate)
+    ok(ctx.h, {"orderNo": holder["o"].get("orderNo"), "payStatus": "review", "payProof": url, "size": size}, 201)
+
+
+def pay_create(ctx):
+    no = (ctx.params.get("orderNo") or "").strip().upper()
+    db = store.load()
+    order = _find_order(db, no)
+    if not order:
+        raise HttpError(404, "没查到这个订单号", "ORDER_NOT_FOUND")
+    if order.get("payStatus") == "paid":
+        raise HttpError(400, "这单已经付过了", "ALREADY_PAID")
+    epay = ((db["settings"].get("payment") or {}).get("epay") or {})
+    if not (epay.get("enabled") and epay.get("gateway") and epay.get("pid") and epay.get("key")):
+        raise HttpError(400, "在线支付还没开通，用收款码付款", "PAY_DISABLED")
+
+    base = _base_url(ctx.h)
+    params = {
+        "pid": str(epay.get("pid")),
+        "type": str(epay.get("type") or "alipay"),
+        "out_trade_no": order["orderNo"],
+        "notify_url": base + "/api/pay/notify",
+        "return_url": base + "/api/pay/return",
+        "name": str(order.get("productTitle") or "护航服务")[:60],
+        "money": "{:.2f}".format(float(order.get("amount") or 0)),
+    }
+    params["sign"] = _epay_sign(params, str(epay.get("key")))
+    params["sign_type"] = "MD5"
+
+    gateway = str(epay.get("gateway")).rstrip("/")
+    url = gateway if "submit.php" in gateway else gateway + "/submit.php"
+    ok(ctx.h, {"orderNo": order["orderNo"], "payUrl": url + "?" + urlencode(params)})
+
+
+def epay_notify(ctx):
+    params = dict(ctx.query)
+    params.update({k: v for k, v in (ctx.form or {}).items() if v})
+    db = store.load()
+    epay = ((db["settings"].get("payment") or {}).get("epay") or {})
+    if not epay.get("key"):
+        ctx.h._send(200, b"fail", "text/plain; charset=utf-8")
+        return
+    if not _epay_verify(params, str(epay.get("key"))):
+        ctx.h._send(200, b"fail", "text/plain; charset=utf-8")
+        return
+    if str(params.get("trade_status") or "") not in ("TRADE_SUCCESS", "TRADE_FINISHED"):
+        ctx.h._send(200, b"fail", "text/plain; charset=utf-8")
+        return
+    no = str(params.get("out_trade_no") or "").strip().upper()
+    holder = {}
+
+    def mutate(db2):
+        order = _find_order(db2, no)
+        if not order:
+            return None
+        try:
+            paid = float(params.get("money") or 0)
+        except ValueError:
+            return None
+        if abs(paid - float(order.get("amount") or 0)) > 0.01:
+            return None
+        if order.get("payStatus") != "paid":
+            order["payStatus"] = "paid"
+            order["payMethod"] = "epay"
+            order["payAt"] = now_iso()
+            order["payTradeNo"] = str(params.get("trade_no") or "")
+            order["updatedAt"] = now_iso()
+            store.add_log(db2, "在线支付到账 " + order["orderNo"])
+        holder["o"] = order
+        return order
+
+    store.update(mutate)
+    body = b"success" if "o" in holder else b"fail"
+    ctx.h._send(200, body, "text/plain; charset=utf-8")
+
+
+def _epay_verify(params, key):
+    sign = str(params.get("sign") or "").lower()
+    if not sign:
+        return False
+    expected = _epay_sign(params, key)
+    return hmac.compare_digest(sign, expected)
+
+
+def epay_return(ctx):
+    no = str(ctx.query.get("out_trade_no") or "").strip().upper()
+    target = "/track.html" + ("?no=" + no if no else "")
+    ctx.h._redirect(target)
+
+
+def admin_order_payment(ctx):
+    oid = ctx.params["id"]
+    action = text(ctx.body.get("action"), 20)
+    status = PAY_ACTIONS.get(action)
+    if not status:
+        raise HttpError(400, "操作不对", "VALIDATION")
+    holder = {}
+
+    def mutate(db):
+        for o in db["orders"]:
+            if o.get("id") == oid or o.get("orderNo") == oid:
+                o["payStatus"] = status
+                if status == "paid":
+                    o["payAt"] = now_iso()
+                    o["payMethod"] = o.get("payMethod") or "manual"
+                if status == "unpaid":
+                    o["payAt"] = ""
+                    o["payTradeNo"] = ""
+                o["updatedAt"] = now_iso()
+                store.add_log(db, "订单 {} 付款状态 → {}".format(o.get("orderNo"), status))
+                holder["o"] = o
+                return o
+        return None
+
+    store.update(mutate)
+    if "o" not in holder:
+        raise HttpError(404, "订单不存在", "ORDER_NOT_FOUND")
+    ok(ctx.h, holder["o"])
 
 
 # ---------------------------------------------------------------- 后台
@@ -290,6 +525,9 @@ def overview(ctx):
             "revenue": revenue,
             "products": len(db["products"]),
             "onSale": len(_visible(db)),
+            "unpaid": sum(1 for o in orders if (o.get("payStatus") or "unpaid") == "unpaid"),
+            "payReview": sum(1 for o in orders if o.get("payStatus") == "review"),
+            "paid": sum(1 for o in orders if o.get("payStatus") == "paid"),
         },
         "series": series,
         "recentOrders": orders[:8],
@@ -467,6 +705,26 @@ def update_settings(ctx):
                 "phone": text(body["kefu"].get("phone"), 40),
                 "hours": text(body["kefu"].get("hours"), 60),
             }
+        if isinstance(body.get("payment"), dict):
+            pay = body["payment"]
+            manual = pay.get("manual") if isinstance(pay.get("manual"), dict) else {}
+            epay = pay.get("epay") if isinstance(pay.get("epay"), dict) else {}
+            s["payment"] = {
+                "manual": {
+                    "enabled": bool(manual.get("enabled", True)),
+                    "wechatQr": text(manual.get("wechatQr"), 300),
+                    "alipayQr": text(manual.get("alipayQr"), 300),
+                    "note": text(manual.get("note"), 200),
+                },
+                "epay": {
+                    "enabled": bool(epay.get("enabled")),
+                    "gateway": text(epay.get("gateway"), 200).rstrip("/"),
+                    "pid": text(epay.get("pid"), 40),
+                    "key": text(epay.get("key"), 120),
+                    "type": epay.get("type") if epay.get("type") in ("alipay", "wxpay") else "alipay",
+                    "name": text(epay.get("name"), 20) or "在线支付",
+                },
+            }
         if isinstance(body.get("heroStats"), list):
             s["heroStats"] = [
                 {"label": text(item.get("label"), 20), "value": text(item.get("value"), 12),
@@ -480,41 +738,14 @@ def update_settings(ctx):
     ok(ctx.h, holder["s"])
 
 
-MAGIC = {
-    "image/png": ("png", b"\x89PNG"),
-    "image/jpeg": ("jpg", b"\xff\xd8\xff"),
-    "image/gif": ("gif", b"GIF"),
-    "image/webp": ("webp", b"RIFF"),
-}
-
-
 def upload(ctx):
-    data_url = str(ctx.body.get("data") or "")
-    if "," not in data_url or not data_url.startswith("data:"):
-        raise HttpError(400, "图片数据不对", "BAD_IMAGE")
-    header, payload = data_url.split(",", 1)
-    mime = header[5:].split(";")[0].lower()
-    if mime not in MAGIC:
-        raise HttpError(400, "只支持 PNG / JPG / GIF / WEBP", "UNSUPPORTED_IMAGE")
-    try:
-        raw = base64.b64decode(payload, validate=True)
-    except (binascii.Error, ValueError):
-        raise HttpError(400, "图片数据损坏", "BAD_IMAGE")
-    if len(raw) > 5 * 1024 * 1024:
-        raise HttpError(413, "图片不要超过 5MB", "TOO_LARGE")
-    ext, magic = MAGIC[mime]
-    if len(raw) < 12 or not raw.startswith(magic):
-        raise HttpError(400, "图片内容和格式不匹配", "BAD_IMAGE")
-
-    name = "img_{}_{}.{}".format(hashlib.sha256(raw).hexdigest()[:16], uid()[:8], ext)
-    store.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    (Path(store.UPLOAD_DIR) / name).write_bytes(raw)
+    url, size = _save_image(ctx.body.get("data"), limit=5 * 1024 * 1024)
 
     def mutate(db):
-        store.add_log(db, "上传图片 " + name)
+        store.add_log(db, "上传图片 " + url[9:])
 
     store.update(mutate)
-    ok(ctx.h, {"url": "/uploads/" + name, "size": len(raw)}, 201)
+    ok(ctx.h, {"url": url, "size": size}, 201)
 
 
 def change_password(ctx):

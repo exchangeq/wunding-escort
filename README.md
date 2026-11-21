@@ -2,8 +2,8 @@
 
 工作室自己在用的护航下单系统。前台是接单页，后台改价格、上架项目、看订单，不用装数据库，一个 JSON 文件就够了。
 
-- 前台：项目列表、筛选、详情、下单、订单进度查询
-- 后台：登录、数据总览、商品增删改、封面图上传、订单接单/完成/取消、站点文案
+- 前台：项目列表、筛选、详情、下单、付款（收款码 / 在线支付）、订单进度查询
+- 后台：登录、数据总览、商品增删改、封面图上传、订单接单/完成/取消、确认到账/退款、收款设置、站点文案
 - 两套后端：Python（Termux / 小机器）和 Go（独立服务器），接口一致，数据文件通用
 - 版权：© 无定科技
 
@@ -16,6 +16,10 @@
 | 后台总览 | 商品管理 |
 | --- | --- |
 | ![](preview/03-总览.png) | ![](preview/04-商品.png) |
+
+| 订单付款面板 | 后台收款设置 |
+| --- | --- |
+| ![](preview/05-付款.png) | ![](preview/06-收款设置.png) |
 
 ## 两种部署方式
 
@@ -124,7 +128,11 @@ SESSION_SECRET='换成一串随机字符' PORT=8080 ./run.sh
 | GET | `/api/products` | 项目列表，支持 game / category / q / sort |
 | GET | `/api/products/{id}` | 项目详情 |
 | POST | `/api/orders` | 下单，金额由服务端算 |
-| GET | `/api/orders/{orderNo}` | 查订单，联系方式脱敏 |
+| GET | `/api/orders/{orderNo}` | 查订单，联系方式脱敏，带付款状态 |
+| POST | `/api/orders/{orderNo}/proof` | 上传付款截图 |
+| POST | `/api/orders/{orderNo}/pay` | 生成在线支付链接 |
+| GET/POST | `/api/pay/notify` | 易支付异步通知，验签后记账 |
+| GET | `/api/pay/return` | 支付完成跳回订单页 |
 | POST | `/api/admin/login` | 登录，返回 12 小时令牌 |
 | GET | `/api/admin/overview` | 总览数据 |
 | GET/POST | `/api/admin/products` | 商品列表 / 新增 |
@@ -148,13 +156,15 @@ bash scripts/package-go.sh       # dist/wunding-escort-go-*-linux-*.zip
 
 GitHub Actions（`.github/workflows/release.yml`）会分别测两套后端，然后打包上传；推 `v*` tag 时自动发 Release。产物在 Actions 页面或 Release 里都能下。
 
-更细的部署步骤：Termux 看 [docs/TERMUX.md](docs/TERMUX.md)，服务器和 Nginx 看 [docs/DEPLOY.md](docs/DEPLOY.md)。
+更细的部署步骤：Termux 看 [docs/TERMUX.md](docs/TERMUX.md)，服务器和 Nginx 看 [docs/DEPLOY.md](docs/DEPLOY.md)，收款和在线支付看 [docs/PAYMENT.md](docs/PAYMENT.md)。
 
 ## 说明
 
 - 订单金额是后端按商品价格算的，前端改不动。
 - 登录失败 10 分钟内超过 6 次会锁一会儿。
-- 上传只收 PNG/JPG/WEBP/GIF，校验文件头，最大 5MB。
+- 上传只收 PNG/JPG/WEBP/GIF，校验文件头，封面最大 5MB，付款截图 3MB。
+- 在线支付走易支付标准接口，签名 MD5，回调会核对金额和交易状态；商户密钥只存服务端，前台接口拿不到。
+- 没开在线支付也能用收款码：用户传截图，后台人工确认到账。
 - 静态文件做了路径穿越检查，页面响应带 CSP。
 - 这套系统按「工作室自用」的规模做的，日单量上百没问题；再往上建议换正式数据库。
 

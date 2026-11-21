@@ -29,6 +29,27 @@ type Kefu struct {
 	Hours  string `json:"hours"`
 }
 
+type PayManual struct {
+	Enabled  bool   `json:"enabled"`
+	WechatQr string `json:"wechatQr"`
+	AlipayQr string `json:"alipayQr"`
+	Note     string `json:"note"`
+}
+
+type PayEpay struct {
+	Enabled bool   `json:"enabled"`
+	Gateway string `json:"gateway"`
+	Pid     string `json:"pid"`
+	Key     string `json:"key"`
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+}
+
+type Payment struct {
+	Manual PayManual `json:"manual"`
+	Epay   PayEpay   `json:"epay"`
+}
+
 type Settings struct {
 	SiteName    string     `json:"siteName"`
 	Company     string     `json:"company"`
@@ -41,6 +62,7 @@ type Settings struct {
 	ICP         string     `json:"icp"`
 	AdminNotice string     `json:"adminNotice"`
 	OrderTips   string     `json:"orderTips"`
+	Payment     Payment    `json:"payment"`
 }
 
 type Product struct {
@@ -82,6 +104,12 @@ type Order struct {
 	Server       string  `json:"server"`
 	Note         string  `json:"note"`
 	Status       string  `json:"status"`
+	PayStatus    string  `json:"payStatus"`
+	PayMethod    string  `json:"payMethod"`
+	PayAt        string  `json:"payAt"`
+	PayTradeNo   string  `json:"payTradeNo"`
+	PayProof     string  `json:"payProof"`
+	PayNote      string  `json:"payNote"`
 	CreatedAt    string  `json:"createdAt"`
 	UpdatedAt    string  `json:"updatedAt"`
 }

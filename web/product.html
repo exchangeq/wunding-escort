@@ -53,7 +53,7 @@
             <span>提交后客服会加你，对一下区服、段位和开打时间；晚上八点前的单当天能排上。</span>
             <span>只用你给的时间段上号，不在游戏里聊天，不动背包和点券，打完当天交还。</span>
             <span>段位单掉段负责补回；赛季保底单没到约定段位，按没完成的比例退差价。</span>
-            <span>站内不收支付信息，付款前认准收款方是「<span data-site="company">无定科技</span>」。</span>
+            <span>付款只认本页展示的收款码和在线支付入口，收款方是「<span data-site="company">无定科技</span>」，别扫别人私发的码。</span>
           </div>
         </div>
       </div>
@@ -133,7 +133,7 @@
 
   <div class="modal-mask" id="successMask">
     <div class="modal">
-      <h3>下单成功，订单号记一下</h3>
+      <h3>下单成功，付款后开始排单</h3>
       <div class="panel" style="border:none;padding:0;background:transparent">
         <div class="kv-grid">
           <div class="kv"><span>订单号</span><b id="okNo" style="color:#35e6ff;letter-spacing:1px">--</b></div>
@@ -141,7 +141,8 @@
           <div class="kv"><span>金额</span><span id="okAmount">--</span></div>
           <div class="kv"><span>状态</span><span id="okStatus">待接单</span></div>
         </div>
-        <p class="hint" id="okTips" style="margin-top:14px"></p>
+        <div id="payBox" style="margin-top:14px"></div>
+        <p class="hint" id="okTips" style="margin-top:10px"></p>
         <p class="hint" style="margin-top:8px">客服 QQ：<b id="okQq">--</b> ｜ 微信：<b id="okWechat">--</b></p>
       </div>
       <div class="modal-actions">
@@ -152,6 +153,7 @@
   </div>
 
   <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/pay.js"></script>
   <script src="/assets/js/product.js"></script>
 </body>
 </html>

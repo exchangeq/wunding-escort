@@ -52,6 +52,10 @@ DEFAULT_SETTINGS = {
     "icp": "",
     "adminNotice": "",
     "orderTips": "",
+    "payment": {
+        "manual": {"enabled": True, "wechatQr": "", "alipayQr": "", "note": "付款时备注订单号。"},
+        "epay": {"enabled": False, "gateway": "", "pid": "", "key": "", "type": "alipay", "name": "在线支付"},
+    },
 }
 DEFAULT_SETTINGS.update(SEED.get("settings") or {})
 

@@ -80,7 +80,7 @@
           <div class="admin-panel-head"><h3>最近订单</h3><span class="hint" id="logLine"></span></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>订单号</th><th>服务</th><th>联系人</th><th>金额</th><th>状态</th><th>时间</th></tr></thead>
+              <thead><tr><th>订单号</th><th>服务</th><th>联系人</th><th>金额</th><th>付款</th><th>状态</th><th>时间</th></tr></thead>
               <tbody id="recentOrders"></tbody>
             </table>
           </div>
@@ -129,7 +129,7 @@
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>订单号</th><th>服务</th><th>数量</th><th>金额</th><th>联系人</th><th>游戏账号</th><th>备注</th><th>状态</th><th>下单时间</th><th>操作</th></tr>
+                <tr><th>订单号</th><th>服务</th><th>数量</th><th>金额</th><th>付款</th><th>联系人</th><th>游戏账号</th><th>备注</th><th>状态</th><th>下单时间</th><th>操作</th></tr>
               </thead>
               <tbody id="orderRows"></tbody>
             </table>
@@ -169,6 +169,43 @@
 
             <div class="admin-panel-head" style="margin:8px 0 0"><h3>首页数据卡片</h3><span class="hint">4 项，留空则隐藏</span></div>
             <div id="heroStatFields" class="form-grid-2"></div>
+
+            <div class="admin-panel-head" style="margin:8px 0 0"><h3>收款设置</h3><span class="hint">收款码由工作室自己上传</span></div>
+            <label class="check-line"><input type="checkbox" id="s-pay-manual-enabled" /> 开启收款码付款（微信 / 支付宝）</label>
+            <div class="pay-field-row">
+              <div class="field">
+                <label>微信收款码</label>
+                <div class="qr-upload">
+                  <img id="s-pay-wechat-img" alt="微信收款码" src="" style="display:none" />
+                  <label class="btn btn-ghost btn-sm">上传图片<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" id="s-pay-wechat-file" hidden /></label>
+                  <input type="hidden" id="s-pay-wechat" />
+                </div>
+              </div>
+              <div class="field">
+                <label>支付宝收款码</label>
+                <div class="qr-upload">
+                  <img id="s-pay-alipay-img" alt="支付宝收款码" src="" style="display:none" />
+                  <label class="btn btn-ghost btn-sm">上传图片<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" id="s-pay-alipay-file" hidden /></label>
+                  <input type="hidden" id="s-pay-alipay" />
+                </div>
+              </div>
+            </div>
+            <div class="field"><label>付款说明（显示在收款码下面）</label><input id="s-pay-note" type="text" maxlength="120" placeholder="付款时备注订单号，客服核对到账后排单" /></div>
+
+            <div class="admin-panel-head" style="margin:8px 0 0"><h3>在线支付</h3><span class="hint">易支付 / 彩虹易支付标准接口</span></div>
+            <label class="check-line"><input type="checkbox" id="s-pay-epay-enabled" /> 启用在线支付（填写网关、PID、密钥后生效）</label>
+            <div class="pay-field-row">
+              <div class="field"><label>网关地址</label><input id="s-pay-gateway" type="text" maxlength="200" placeholder="https://pay.example.com" /></div>
+              <div class="field"><label>商户 PID</label><input id="s-pay-pid" type="text" maxlength="40" placeholder="1001" /></div>
+            </div>
+            <div class="pay-field-row">
+              <div class="field"><label>商户密钥（KEY）</label><input id="s-pay-key" type="password" maxlength="120" autocomplete="off" /></div>
+              <div class="field"><label>支付方式</label>
+                <select id="s-pay-type"><option value="alipay">支付宝</option><option value="wxpay">微信支付</option></select>
+              </div>
+            </div>
+            <div class="field"><label>按钮名称</label><input id="s-pay-name" type="text" maxlength="20" placeholder="在线支付" /></div>
+            <p class="pay-hint">异步通知地址：<code id="payNotifyUrl">/api/pay/notify</code>，签名方式 MD5。没填密钥或网关时，前台不会出现在线支付按钮。</p>
 
             <div style="display:flex;gap:10px;margin-top:8px">
               <button class="btn btn-primary" type="submit" id="saveSettingsBtn">保存设置</button>

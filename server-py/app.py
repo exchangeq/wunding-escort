@@ -33,6 +33,11 @@ ROUTES = [
     ("GET", "/api/products/{id}", "product_detail", PUBLIC),
     ("POST", "/api/orders", "create_order", PUBLIC),
     ("GET", "/api/orders/{orderNo}", "track_order", PUBLIC),
+    ("POST", "/api/orders/{orderNo}/proof", "submit_proof", PUBLIC),
+    ("POST", "/api/orders/{orderNo}/pay", "pay_create", PUBLIC),
+    ("GET", "/api/pay/notify", "epay_notify", PUBLIC),
+    ("POST", "/api/pay/notify", "epay_notify", PUBLIC),
+    ("GET", "/api/pay/return", "epay_return", PUBLIC),
     ("POST", "/api/admin/login", "login", PUBLIC),
     ("GET", "/api/admin/me", "me", AUTH),
     ("GET", "/api/admin/overview", "overview", AUTH),
@@ -42,6 +47,7 @@ ROUTES = [
     ("DELETE", "/api/admin/products/{id}", "delete_product", AUTH),
     ("GET", "/api/admin/orders", "admin_orders", AUTH),
     ("PUT", "/api/admin/orders/{id}", "update_order", AUTH),
+    ("PUT", "/api/admin/orders/{id}/payment", "admin_order_payment", AUTH),
     ("DELETE", "/api/admin/orders/{id}", "delete_order", AUTH),
     ("GET", "/api/admin/settings", "get_settings", AUTH),
     ("PUT", "/api/admin/settings", "update_settings", AUTH),
@@ -56,6 +62,7 @@ class Ctx:
         self.params = {}
         self.query = {}
         self.body = {}
+        self.form = {}
         self.ip = handler.client_ip
         self.user = None
 
@@ -154,7 +161,10 @@ class Handler(BaseHTTPRequestHandler):
                 ctx.user = payload
 
             if method in ("POST", "PUT", "PATCH"):
-                ctx.body = self._read_json(MAX_UPLOAD if path == "/api/admin/upload" else 512 * 1024)
+                if path == "/api/pay/notify":
+                    ctx.form = self._read_form()
+                else:
+                    ctx.body = self._read_json(MAX_UPLOAD if (path == "/api/admin/upload" or path.endswith("/proof")) else 512 * 1024)
 
             getattr(api, name)(ctx)
 
@@ -169,6 +179,20 @@ class Handler(BaseHTTPRequestHandler):
                 fail(self, 500, "服务端出错了", "INTERNAL_ERROR")
             except Exception:
                 pass
+
+    def _read_form(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0:
+            return {}
+        raw = self.rfile.read(min(length, 64 * 1024)).decode("utf-8", "ignore")
+        return {k: v[0] for k, v in parse_qs(raw).items()}
+
+    def _redirect(self, location):
+        self.send_response(302)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _read_json(self, limit):
         length = int(self.headers.get("Content-Length") or 0)

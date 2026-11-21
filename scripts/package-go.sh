@@ -19,7 +19,7 @@ build_target() {
   (cd server-go && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
     go build -trimpath -ldflags "-s -w" -o "$stage/wunding-escort${suffix}" .)
 
-  cp -R web "$stage/"
+  cp -R web docs "$stage/"
   cp seed.json README.md LICENSE VERSION "$stage/"
 
   cat > "$stage/run.sh" <<EOF

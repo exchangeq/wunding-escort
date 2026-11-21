@@ -36,7 +36,23 @@
     "copyright": "© 2026 无定科技 版权所有",
     "icp": "蜀ICP备2026018866号",
     "adminNotice": "",
-    "orderTips": "下单后把订单号发给客服微信，值班人员会拉你和护航师进同一个群，后面进度都在群里同步。"
+    "orderTips": "下单后把订单号发给客服微信，值班人员会拉你和护航师进同一个群，后面进度都在群里同步。",
+    "payment": {
+      "manual": {
+        "enabled": true,
+        "wechatQr": "",
+        "alipayQr": "",
+        "note": "付款时在备注里写上订单号，客服核对到账后排单。"
+      },
+      "epay": {
+        "enabled": false,
+        "gateway": "",
+        "pid": "",
+        "key": "",
+        "type": "alipay",
+        "name": "在线支付"
+      }
+    }
   },
   "products": [
     {
